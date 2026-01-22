@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Standby Pro V3</title>
+    <title>Standby Pro V4</title>
     <style>
         :root {
             --theme-color: #fff;
             --bg-color: #000;
-            --accent-color: #0a84ff; /* 青色アクセント */
-            --danger-color: #ff453a;
+            --accent-color: #0a84ff;
             --dim-color: #333;
+            --panel-border: 1px solid #222;
         }
         
-        /* 夜間モード（赤） */
         body.night-mode {
             --theme-color: #ff453a;
             --accent-color: #ff453a;
             --dim-color: #591815;
+            --panel-border: 1px solid #440000;
         }
 
         body, html {
@@ -28,118 +28,135 @@
             color: var(--theme-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             height: 100%; overflow: hidden;
-            transition: color 0.5s ease;
+            transition: all 0.5s ease;
         }
 
-        /* レイアウト：左40% : 右60% */
+        /* レイアウト全体 */
         .main-container {
             display: flex;
             width: 100vw; height: 100vh;
         }
 
-        /* --- 左側：時計・アラーム・タイマー --- */
-        .left-pane {
-            flex: 0 0 40%; /* 幅固定40% */
-            border-right: 1px solid #222;
+        /* === 左側エリア（スワイプ対応） === */
+        .left-pane-wrapper {
+            flex: 0 0 40%; /* 左側40% */
+            border-right: var(--panel-border);
             display: flex;
             flex-direction: column;
             position: relative;
         }
 
-        .left-content {
+        .left-scroll-container {
             flex: 1;
+            display: flex;
+            overflow-x: scroll; /* 横スクロール有効 */
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory; /* スナップ有効 */
+            scrollbar-width: none; /* スクロールバー隠す */
+        }
+        .left-scroll-container::-webkit-scrollbar { display: none; }
+
+        .left-page {
+            flex: 0 0 100%; /* 幅100% */
+            scroll-snap-align: center;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            display: none; /* JSで切り替え */
         }
-        .left-content.active { display: flex; }
-
-        /* 左側タブボタン */
-        .left-tabs {
-            height: 50px;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            padding-bottom: 20px;
-        }
-        .tab-btn {
-            background: transparent; border: none;
-            color: var(--theme-color); opacity: 0.4;
-            font-size: 1.5rem; cursor: pointer;
-        }
-        .tab-btn.active { opacity: 1; font-weight: bold; border-bottom: 2px solid var(--theme-color); }
 
         /* 時計デザイン */
         .clock-time { font-size: 13vw; font-weight: 800; line-height: 0.9; font-variant-numeric: tabular-nums; }
         .clock-date { font-size: 3.5vw; margin-top: 10px; opacity: 0.8; }
 
-        /* アラーム・タイマーUI */
-        .input-group { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
-        input[type="time"], input[type="number"] {
-            background: #222; border: 1px solid #444; color: #fff;
-            font-size: 1.5rem; padding: 5px; border-radius: 8px;
+        /* 左下タブナビゲーション */
+        .left-tabs {
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            border-top: var(--panel-border);
+            background: var(--bg-color);
+            z-index: 10;
         }
-        .action-btn {
-            padding: 8px 20px; font-size: 1.2rem; border-radius: 20px; border: none;
-            background: var(--dim-color); color: var(--theme-color); cursor: pointer;
+        .tab-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #444;
+            transition: background 0.3s;
         }
-        .action-btn.primary { background: var(--theme-color); color: var(--bg-color); }
-        .timer-display { font-size: 8vw; font-weight: bold; font-variant-numeric: tabular-nums; }
+        .tab-dot.active { background: var(--theme-color); }
+        .tab-label {
+            font-size: 0.8rem; color: #888;
+            background: none; border: none; cursor: pointer;
+        }
+        .tab-label.active { color: var(--theme-color); font-weight: bold; }
 
-        /* --- 右側：ウィジェット（スワイプ） --- */
+        /* === アラーム・タイマー共通 UI === */
+        .input-row { display: flex; align-items: center; gap: 5px; margin: 15px 0; }
+        input[type="number"], input[type="time"] {
+            background: #222; border: 1px solid #444; color: #fff;
+            font-size: 1.5rem; padding: 10px; border-radius: 8px;
+            text-align: center; width: 80px;
+        }
+        .timer-label { font-size: 1rem; opacity: 0.7; }
+        
+        .action-btn {
+            padding: 10px 25px; font-size: 1.2rem; border-radius: 25px; border: none;
+            background: var(--dim-color); color: var(--theme-color); cursor: pointer;
+            min-width: 100px;
+        }
+        .action-btn.primary { background: var(--theme-color); color: var(--bg-color); font-weight: bold; }
+        
+        .timer-display { font-size: 16vw; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+
+        /* === 右側エリア（スワイプ対応） === */
         .right-pane {
-            flex: 1; /* 残り全部(60%) */
+            flex: 1; /* 右側60% */
             overflow-x: scroll;
             overflow-y: hidden;
             scroll-snap-type: x mandatory;
             display: flex;
+            scrollbar-width: none;
         }
+        .right-pane::-webkit-scrollbar { display: none; }
 
         .widget {
-            flex: 0 0 100%; /* 親の幅(60vw)に対して100% = ピッタリはまる */
+            flex: 0 0 100%;
             height: 100%;
             scroll-snap-align: center;
             padding: 20px; box-sizing: border-box;
             display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            overflow-y: auto; /* 縦スクロール許可（ToDo用） */
+            align-items: center;
+            overflow-y: auto;
         }
 
-        /* ToDoリストデザイン */
-        .todo-input-container {
-            width: 100%; display: flex; gap: 5px; margin-bottom: 15px;
-        }
-        .todo-text-input {
-            flex: 1; background: #222; border: none; color: white;
-            padding: 10px; border-radius: 8px; font-size: 1rem;
-        }
-        .todo-list {
-            width: 100%; flex: 1; overflow-y: auto;
-            display: flex; flex-direction: column; gap: 8px;
-        }
-        .todo-item {
-            display: flex; align-items: center; gap: 10px;
-            background: rgba(255,255,255,0.1); padding: 10px;
-            border-radius: 8px; font-size: 1.1rem;
-        }
+        /* ToDoリスト */
+        .todo-input-container { width: 100%; display: flex; gap: 5px; margin-bottom: 15px; }
+        .todo-text-input { flex: 1; background: #222; border: none; color: white; padding: 10px; border-radius: 8px; font-size: 1rem; }
+        .todo-list { width: 100%; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .todo-item { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; }
         .todo-item.completed { opacity: 0.5; text-decoration: line-through; }
-        .checkbox {
-            width: 24px; height: 24px; border: 2px solid var(--theme-color);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-        }
-        .checkbox.checked::after {
-            content: '✔'; font-size: 16px; color: var(--theme-color);
-        }
-        .todo-time { font-size: 0.8em; opacity: 0.7; margin-left: auto; }
-        .delete-btn { background: none; border: none; color: #888; font-size: 1.2rem; }
+        .checkbox { width: 24px; height: 24px; border: 2px solid var(--theme-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .checkbox.checked::after { content: '✔'; font-size: 16px; color: var(--theme-color); }
+        .delete-btn { background: none; border: none; color: #888; font-size: 1.2rem; margin-left: auto; }
 
-        /* 共通ボタン（夜間モードなど） */
+        /* 天気・カレンダー */
+        .weather-temp { font-size: 6rem; font-weight: bold; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; width: 100%; font-size: 1.4rem; }
+        .cal-today { background: var(--theme-color); color: var(--bg-color); border-radius: 50%; width: 40px; height: 40px; display:flex; align-items:center; justify-content:center; margin:0 auto;}
+
+        /* --- UIパーツ --- */
+        /* 夜間モードボタン（左上に移動） */
         #mode-toggle {
-            position: fixed; bottom: 15px; left: 15px;
-            width: 40px; height: 40px; background: rgba(50,50,50,0.5);
-            border-radius: 50%; border: none; color: #fff; z-index: 100;
+            position: fixed; top: 20px; left: 20px;
+            width: 44px; height: 44px;
+            background: rgba(50,50,50,0.6);
+            border-radius: 50%; border: 1px solid #666;
+            color: #fff; z-index: 100;
+            font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
         }
 
         /* 起動オーバーレイ */
@@ -152,47 +169,53 @@
 <body>
 
     <div id="start-overlay">
-        <h2 style="color:white;">Standby Pro V3</h2>
-        <p style="color:#888;">音声を有効にするため<br>ボタンを押して開始してください</p>
+        <h2>Standby Pro V4</h2>
+        <p style="color:#888; margin:20px 0;">画面タップでスタート</p>
         <button class="action-btn primary" onclick="startApp()">開始</button>
     </div>
 
     <button id="mode-toggle" onclick="toggleNightMode()">☀</button>
 
     <div class="main-container">
-        <div class="left-pane">
-            <div id="view-clock" class="left-content active">
-                <div class="clock-time" id="clock">00:00</div>
-                <div class="clock-date" id="date">1月1日(月)</div>
-            </div>
-
-            <div id="view-alarm" class="left-content">
-                <h2>Alarm</h2>
-                <input type="time" id="alarm-time">
-                <div style="margin-top:10px;">
-                    <button class="action-btn" id="alarm-toggle" onclick="toggleAlarm()">OFF</button>
+        <div class="left-pane-wrapper">
+            <div class="left-scroll-container" id="left-scroll" onscroll="updateLeftTabs()">
+                
+                <div class="left-page" id="page-clock">
+                    <div class="clock-time" id="clock">00:00</div>
+                    <div class="clock-date" id="date">1月1日(月)</div>
                 </div>
-                <p id="alarm-status" style="margin-top:10px; color:#888;">設定なし</p>
-            </div>
 
-            <div id="view-timer" class="left-content">
-                <h2>Timer</h2>
-                <div class="timer-display" id="timer-display">00:00</div>
-                <div class="input-group">
-                    <button class="action-btn" onclick="setTimer(3)">3分</button>
-                    <button class="action-btn" onclick="setTimer(5)">5分</button>
-                    <button class="action-btn" onclick="setTimer(10)">10分</button>
+                <div class="left-page" id="page-alarm">
+                    <h2 style="opacity:0.6;">ALARM</h2>
+                    <input type="time" id="alarm-time" style="font-size:2rem; width:auto;">
+                    <div style="margin-top:20px;">
+                        <button class="action-btn" id="alarm-toggle" onclick="toggleAlarm()">OFF</button>
+                    </div>
+                    <p id="alarm-status" style="margin-top:15px; color:#888;">設定なし</p>
                 </div>
-                <div>
-                    <button class="action-btn primary" onclick="startTimer()">Start</button>
-                    <button class="action-btn" onclick="resetTimer()">Reset</button>
+
+                <div class="left-page" id="page-timer">
+                    <h2 style="opacity:0.6;">TIMER</h2>
+                    <div class="timer-display" id="timer-display">00:00</div>
+                    
+                    <div class="input-row">
+                        <input type="number" id="timer-min" placeholder="分" min="0" max="999" onchange="saveTimerSetting()">
+                        <span class="timer-label">分</span>
+                        <input type="number" id="timer-sec" placeholder="秒" min="0" max="59" onchange="saveTimerSetting()">
+                        <span class="timer-label">秒</span>
+                    </div>
+
+                    <div style="display:flex; gap:15px;">
+                        <button class="action-btn primary" id="timer-btn" onclick="toggleTimer()">Start</button>
+                        <button class="action-btn" onclick="resetTimer()">Reset</button>
+                    </div>
                 </div>
             </div>
 
             <div class="left-tabs">
-                <button class="tab-btn active" onclick="switchLeft('clock', this)">時計</button>
-                <button class="tab-btn" onclick="switchLeft('alarm', this)">アラーム</button>
-                <button class="tab-btn" onclick="switchLeft('timer', this)">タイマー</button>
+                <button class="tab-label active" id="tab-btn-0" onclick="scrollToPage(0)">時計</button>
+                <button class="tab-label" id="tab-btn-1" onclick="scrollToPage(1)">アラーム</button>
+                <button class="tab-label" id="tab-btn-2" onclick="scrollToPage(2)">タイマー</button>
             </div>
         </div>
 
@@ -201,13 +224,11 @@
             <div class="widget">
                 <h2>ToDo & Reminder</h2>
                 <div class="todo-input-container">
-                    <input type="text" id="todo-input" class="todo-text-input" placeholder="予定を入力...">
-                    <input type="time" id="todo-time-input" style="width:80px;">
+                    <input type="text" id="todo-input" class="todo-text-input" placeholder="予定...">
+                    <input type="time" id="todo-time" style="width:80px; background:#333; border:none; color:#fff; border-radius:5px;">
                 </div>
                 <button class="action-btn primary" style="width:100%; margin-bottom:10px;" onclick="addTodo()">追加</button>
-                
-                <div class="todo-list" id="todo-list">
-                    </div>
+                <div class="todo-list" id="todo-list"></div>
             </div>
 
             <div class="widget">
@@ -219,50 +240,36 @@
 
             <div class="widget">
                 <h2 id="cal-title">Calendar</h2>
-                <div id="calendar" style="display:grid; grid-template-columns:repeat(7,1fr); gap:8px; text-align:center; font-size:1.5rem; width:100%;"></div>
+                <div id="calendar" class="calendar-grid"></div>
             </div>
 
         </div>
     </div>
 
     <script>
-        // === オーディオコンテキスト（音用） ===
+        // === 初期化 & 共通 ===
         let audioCtx;
-        
         function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
-
         function playBeep() {
             if (!audioCtx) initAudio();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz (A5)
-            osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
-            
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
             gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.5);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
         }
 
-        // === アプリ共通 ===
         async function startApp() {
             document.getElementById('start-overlay').style.display = 'none';
-            initAudio(); // 音の準備
-            
-            // Wake Lock
-            try {
-                if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
-            } catch(e) {}
-            
-            // 通知許可
+            initAudio();
+            loadTimerSetting(); // タイマー設定復元
+            try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch(e){}
             if (Notification.permission === 'default') Notification.requestPermission();
         }
 
@@ -272,15 +279,27 @@
             btn.innerText = document.body.classList.contains('night-mode') ? '☾' : '☀';
         }
 
-        // === 左側ロジック ===
-        function switchLeft(viewId, btn) {
-            document.querySelectorAll('.left-content').forEach(el => el.classList.remove('active'));
-            document.getElementById('view-' + viewId).classList.add('active');
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            btn.classList.add('active');
+        // === 左側スワイプ制御 ===
+        function scrollToPage(index) {
+            const container = document.getElementById('left-scroll');
+            const width = container.offsetWidth;
+            container.scrollTo({ left: width * index, behavior: 'smooth' });
         }
 
-        // 時計
+        function updateLeftTabs() {
+            const container = document.getElementById('left-scroll');
+            const width = container.offsetWidth;
+            const index = Math.round(container.scrollLeft / width);
+            
+            // タブの見た目更新
+            [0,1,2].forEach(i => {
+                const btn = document.getElementById(`tab-btn-${i}`);
+                if(i === index) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+
+        // === 時計 & アラーム ===
         setInterval(() => {
             const now = new Date();
             const h = String(now.getHours()).padStart(2,'0');
@@ -291,14 +310,17 @@
             const days = ['日','月','火','水','木','金','土'];
             document.getElementById('date').innerText = `${now.getMonth()+1}月${now.getDate()}日 (${days[now.getDay()]})`;
 
-            checkAlarm(h, m);
-            checkTodoReminders(h, m);
+            // アラームチェック
+            if(alarmEnabled && alarmTimeVal === `${h}:${m}` && s === "00") {
+                playBeep(); alert('Alarm!'); toggleAlarm();
+            }
+            // ToDo通知チェック
+            checkTodoReminders(h, m, s);
+
         }, 1000);
 
-        // アラーム
         let alarmEnabled = false;
         let alarmTimeVal = "";
-        
         function toggleAlarm() {
             const btn = document.getElementById('alarm-toggle');
             const input = document.getElementById('alarm-time');
@@ -308,141 +330,152 @@
                 if(!input.value) return alert('時間を設定してください');
                 alarmEnabled = true;
                 alarmTimeVal = input.value;
-                btn.innerText = "ON";
-                btn.classList.add('primary');
+                btn.innerText = "ON"; btn.classList.add('primary');
                 status.innerText = `${alarmTimeVal} に設定中`;
             } else {
                 alarmEnabled = false;
-                btn.innerText = "OFF";
-                btn.classList.remove('primary');
+                btn.innerText = "OFF"; btn.classList.remove('primary');
                 status.innerText = "設定なし";
             }
         }
 
-        function checkAlarm(h, m) {
-            if (alarmEnabled && alarmTimeVal === `${h}:${m}`) {
-                playBeep();
-                // 1分間鳴り続けないようにフラグ管理が必要だが、簡易的にアラートを出す
-                // 実際は画面点滅などを入れたいが、ここでは簡易実装
-                if(new Date().getSeconds() === 0) {
-                    alert('アラームの時間です！');
-                    toggleAlarm(); // OFFにする
-                }
+        // === 新: 自由設定タイマー ===
+        let timerInterval = null;
+        let remainingSeconds = 0;
+        let isRunning = false;
+
+        // 設定の保存と読み込み（ローカルストレージ）
+        function saveTimerSetting() {
+            const min = document.getElementById('timer-min').value || 0;
+            const sec = document.getElementById('timer-sec').value || 0;
+            localStorage.setItem('my_timer_min', min);
+            localStorage.setItem('my_timer_sec', sec);
+            // タイマー停止中なら表示も更新
+            if(!isRunning) {
+                const m = String(min).padStart(2,'0');
+                const s = String(sec).padStart(2,'0');
+                document.getElementById('timer-display').innerText = `${m}:${s}`;
             }
         }
 
-        // タイマー
-        let timerInterval;
-        let timerSeconds = 0;
-
-        function setTimer(min) {
-            timerSeconds = min * 60;
-            updateTimerDisplay();
-        }
-        function updateTimerDisplay() {
-            const m = Math.floor(timerSeconds / 60).toString().padStart(2,'0');
-            const s = (timerSeconds % 60).toString().padStart(2,'0');
+        function loadTimerSetting() {
+            const min = localStorage.getItem('my_timer_min') || 3; // デフォルト3分
+            const sec = localStorage.getItem('my_timer_sec') || 0;
+            document.getElementById('timer-min').value = min;
+            document.getElementById('timer-sec').value = sec;
+            const m = String(min).padStart(2,'0');
+            const s = String(sec).padStart(2,'0');
             document.getElementById('timer-display').innerText = `${m}:${s}`;
         }
-        function startTimer() {
-            if(timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if(timerSeconds > 0) {
-                    timerSeconds--;
-                    updateTimerDisplay();
-                } else {
-                    clearInterval(timerInterval);
-                    playBeep();
-                    alert('タイマー終了');
-                }
-            }, 1000);
-        }
-        function resetTimer() {
-            clearInterval(timerInterval);
-            timerSeconds = 0;
-            updateTimerDisplay();
+
+        function toggleTimer() {
+            if(isRunning) {
+                // ストップ処理
+                clearInterval(timerInterval);
+                isRunning = false;
+                document.getElementById('timer-btn').innerText = "Start";
+                document.getElementById('timer-btn').classList.add('primary');
+            } else {
+                // スタート処理
+                const min = parseInt(document.getElementById('timer-min').value) || 0;
+                const sec = parseInt(document.getElementById('timer-sec').value) || 0;
+                
+                if(remainingSeconds === 0) remainingSeconds = (min * 60) + sec;
+                if(remainingSeconds <= 0) return;
+
+                isRunning = true;
+                document.getElementById('timer-btn').innerText = "Stop";
+                document.getElementById('timer-btn').classList.remove('primary');
+
+                timerInterval = setInterval(() => {
+                    if(remainingSeconds > 0) {
+                        remainingSeconds--;
+                        const dMin = Math.floor(remainingSeconds / 60).toString().padStart(2,'0');
+                        const dSec = (remainingSeconds % 60).toString().padStart(2,'0');
+                        document.getElementById('timer-display').innerText = `${dMin}:${dSec}`;
+                    } else {
+                        clearInterval(timerInterval);
+                        isRunning = false;
+                        playBeep(); alert('Time Up!');
+                        document.getElementById('timer-btn').innerText = "Start";
+                        document.getElementById('timer-btn').classList.add('primary');
+                        remainingSeconds = 0; // リセット
+                    }
+                }, 1000);
+            }
         }
 
-        // === 右側ロジック ===
-        
-        // ToDoリスト
-        let todos = JSON.parse(localStorage.getItem('standby_todos') || '[]');
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            remainingSeconds = 0;
+            loadTimerSetting(); // 保存された設定に戻す
+            document.getElementById('timer-btn').innerText = "Start";
+            document.getElementById('timer-btn').classList.add('primary');
+        }
+
+        // === ToDoリスト（前回と同じだが再掲） ===
+        let todos = JSON.parse(localStorage.getItem('todos_v4') || '[]');
         renderTodos();
 
         function addTodo() {
             const text = document.getElementById('todo-input').value;
-            const time = document.getElementById('todo-time-input').value;
+            const time = document.getElementById('todo-time').value;
             if(!text) return;
-            
-            todos.push({ id: Date.now(), text, time, completed: false, notified: false });
+            todos.push({ id: Date.now(), text, time, completed:false, notified:false });
             saveTodos();
             document.getElementById('todo-input').value = '';
         }
-
-        function toggleTodo(id) {
-            const todo = todos.find(t => t.id === id);
-            if(todo) todo.completed = !todo.completed;
-            saveTodos();
+        function saveTodos() { localStorage.setItem('todos_v4', JSON.stringify(todos)); renderTodos(); }
+        function deleteTodo(id) { todos = todos.filter(t => t.id !== id); saveTodos(); }
+        function toggleTodo(id) { 
+            const t = todos.find(x => x.id === id); 
+            if(t) t.completed = !t.completed; 
+            saveTodos(); 
         }
-
-        function deleteTodo(id) {
-            todos = todos.filter(t => t.id !== id);
-            saveTodos();
-        }
-
-        function saveTodos() {
-            localStorage.setItem('standby_todos', JSON.stringify(todos));
-            renderTodos();
-        }
-
         function renderTodos() {
             const list = document.getElementById('todo-list');
             list.innerHTML = '';
             todos.forEach(t => {
                 const div = document.createElement('div');
-                div.className = `todo-item ${t.completed ? 'completed' : ''}`;
+                div.className = `todo-item ${t.completed?'completed':''}`;
                 div.innerHTML = `
-                    <div class="checkbox ${t.completed ? 'checked' : ''}" onclick="toggleTodo(${t.id})"></div>
-                    <div>${t.text}</div>
-                    ${t.time ? `<div class="todo-time">${t.time}</div>` : ''}
+                    <div class="checkbox ${t.completed?'checked':''}" onclick="toggleTodo(${t.id})"></div>
+                    <div style="flex:1;">
+                        <div>${t.text}</div>
+                        ${t.time ? `<div style="font-size:0.8em; opacity:0.7;">⏰ ${t.time}</div>` : ''}
+                    </div>
                     <button class="delete-btn" onclick="deleteTodo(${t.id})">×</button>
                 `;
                 list.appendChild(div);
             });
         }
-
-        function checkTodoReminders(h, m) {
-            const nowTime = `${h}:${m}`;
+        function checkTodoReminders(h, m, s) {
+            if(s !== '00') return;
+            const now = `${h}:${m}`;
             todos.forEach(t => {
-                if(t.time === nowTime && !t.completed && !t.notified) {
+                if(t.time === now && !t.completed && !t.notified) {
                     playBeep();
-                    if(Notification.permission === 'granted') {
-                        new Notification('リマインダー', { body: t.text });
-                    }
-                    t.notified = true; // 重複通知防止
-                    saveTodos(); // フラグ保存
+                    if(Notification.permission==='granted') new Notification(t.text);
+                    t.notified = true;
+                    saveTodos();
                 }
             });
         }
 
-        // カレンダー・天気は前回と同様（省略せずに記述）
+        // === 天気とカレンダー ===
         function renderCalendar() {
-            // (前回のカレンダー描画コードと同様だが、レイアウト調整済みのHTMLに出力)
             const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth();
-            document.getElementById('cal-title').innerText = `${year}年 ${month+1}月`;
-            
-            const firstDay = new Date(year, month, 1).getDay();
-            const lastDate = new Date(year, month+1, 0).getDate();
-            
+            const y = now.getFullYear(); const m = now.getMonth();
+            document.getElementById('cal-title').innerText = `${y}年 ${m+1}月`;
             let html = '';
-            const weekDays = ['日','月','火','水','木','金','土'];
-            weekDays.forEach(d => html += `<div style="font-weight:bold; color:var(--theme-color);">${d}</div>`);
-            for(let i=0; i<firstDay; i++) html += `<div></div>`;
-            for(let i=1; i<=lastDate; i++) {
-                const isToday = i === now.getDate() ? 'background:var(--theme-color); color:var(--bg-color); border-radius:50%;' : '';
-                html += `<div style="${isToday}">${i}</div>`;
+            ['日','月','火','水','木','金','土'].forEach(d => html+=`<div style="font-weight:bold; color:var(--theme-color);">${d}</div>`);
+            const first = new Date(y, m, 1).getDay();
+            const last = new Date(y, m+1, 0).getDate();
+            for(let i=0; i<first; i++) html+=`<div></div>`;
+            for(let i=1; i<=last; i++) {
+                const isToday = i===now.getDate() ? 'cal-today' : '';
+                html+=`<div class="${isToday}">${i}</div>`;
             }
             document.getElementById('calendar').innerHTML = html;
         }
@@ -456,15 +489,10 @@
                     const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current_weather=true&timezone=auto`);
                     const data = await res.json();
                     const w = data.current_weather;
-                    
                     let wName = '晴れ';
                     if(w.weathercode > 3) wName = '曇り';
                     if(w.weathercode > 50) wName = '雨';
-
-                    d.innerHTML = `
-                        <div style="font-size:6rem; font-weight:bold;">${w.temperature}°</div>
-                        <div style="font-size:2rem;">${wName}</div>
-                    `;
+                    d.innerHTML = `<div class="weather-temp">${w.temperature}°</div><div style="font-size:2rem;">${wName}</div>`;
                 } catch(e) { d.innerText = 'Error'; }
             });
         }
