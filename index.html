@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MyStandby">
+    <title>My Standby</title>
+    <style>
+        /* ベーススタイル（黒背景・OLED対策） */
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100%;
+            overflow: hidden; /* 全体のスクロールを禁止 */
+        }
+
+        /* スワイプコンテナ（ここが横スクロールする） */
+        .container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            overflow-x: scroll;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory; /* スナップ機能 */
+            scroll-behavior: smooth;
+        }
+
+        /* 各画面（セクション）の共通設定 */
+        section {
+            flex: 0 0 100vw; /* 横幅いっぱいに固定 */
+            height: 100vh;
+            scroll-snap-align: start; /* スナップ位置 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* 時計画面のスタイル */
+        .time-display {
+            font-size: 25vw; /* 画面幅に応じた巨大文字 */
+            font-weight: 700;
+            line-height: 1;
+            font-variant-numeric: tabular-nums; /* 数字の幅を等幅にする */
+        }
+        .date-display {
+            font-size: 5vw;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        /* ダミー画面（将来の拡張用） */
+        .placeholder-text {
+            font-size: 3vw;
+            color: #555;
+        }
+
+        /* 初回タップ用のオーバーレイ（Wake Lock有効化のため） */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            flex-direction: column;
+        }
+        #start-overlay button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <p>画面を常時ONにするため<br>ボタンを押して開始してください</p>
+        <button onclick="startApp()">スタンバイ開始</button>
+    </div>
+
+    <div class="container">
+        <section id="clock-screen">
+            <div class="time-display" id="clock">00:00</div>
+            <div class="date-display" id="date">1月1日(月)</div>
+        </section>
+
+        <section id="calendar-screen">
+            <h2>Calendar</h2>
+            <p class="placeholder-text">ここにカレンダーを表示</p>
+        </section>
+
+        <section id="memo-screen">
+            <h2>Memo</h2>
+            <p class="placeholder-text">ここにメモを表示</p>
+        </section>
+    </div>
+
+    <script>
+        // --- 時計機能 ---
+        function updateClock() {
+            const now = new Date();
+            
+            // 時刻 (HH:MM:SS)
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0'); // 秒まで表示
+            document.getElementById('clock').innerText = `${hours}:${minutes}:${seconds}`;
+
+            // 日付 (M月D日(曜日))
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
+            const day = days[now.getDay()];
+            document.getElementById('date').innerText = `${month}月${date}日(${day})`;
+        }
+
+        setInterval(updateClock, 1000); // 1秒ごとに更新
+        updateClock(); // 即時実行
+
+        // --- Wake Lock (画面常時ON) ---
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock active');
+                    
+                    // 解除されたら再取得を試みる（タブ切り替えなどで切れるため）
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock released');
+                    });
+                }
+            } catch (err) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        }
+
+        // --- アプリ開始処理 ---
+        function startApp() {
+            document.getElementById('start-overlay').style.display = 'none';
+            // ユーザーアクション（タップ）をトリガーにWake Lockを要求
+            requestWakeLock();
+            
+            // フルスクリーン化（簡易的）
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.log(e));
+            }
+        }
+
+        // タブがアクティブに戻った時にWake Lockを再取得
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+    </script>
+</body>
+</html>
