@@ -5,170 +5,334 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="MyStandby">
-    <title>My Standby</title>
+    <title>Standby Pro</title>
     <style>
-        /* ベーススタイル（黒背景・OLED対策） */
+        :root {
+            --theme-color: #fff; /* デフォルトは白 */
+            --bg-color: #000;
+            --dim-color: #333;
+        }
+        
+        /* 夜間モード（赤） */
+        body.night-mode {
+            --theme-color: #ff453a; /* Apple風の赤 */
+            --dim-color: #591815;
+        }
+
         body, html {
             margin: 0;
             padding: 0;
-            background-color: #000;
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--theme-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             height: 100%;
-            overflow: hidden; /* 全体のスクロールを禁止 */
+            overflow: hidden;
+            transition: color 0.5s ease;
         }
 
-        /* スワイプコンテナ（ここが横スクロールする） */
-        .container {
+        /* 全体レイアウト：左右分割 */
+        .main-container {
             display: flex;
             width: 100vw;
             height: 100vh;
-            overflow-x: scroll;
-            overflow-y: hidden;
-            scroll-snap-type: x mandatory; /* スナップ機能 */
-            scroll-behavior: smooth;
         }
 
-        /* 各画面（セクション）の共通設定 */
-        section {
-            flex: 0 0 100vw; /* 横幅いっぱいに固定 */
-            height: 100vh;
-            scroll-snap-align: start; /* スナップ位置 */
+        /* --- 左側：時計エリア --- */
+        .left-pane {
+            flex: 1; /* 画面の半分 */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            border-right: 1px solid #222;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .clock-time {
+            font-size: 18vw; /* 半分になっても収まるサイズ */
+            font-weight: 800;
+            line-height: 0.9;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+        }
+        .clock-date {
+            font-size: 4vw;
+            margin-top: 10px;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        /* --- 右側：ウィジェットエリア（スワイプ可能） --- */
+        .right-pane {
+            flex: 1; /* 画面の半分 */
+            width: 50vw;
+            overflow-x: scroll; /* 横スクロール許可 */
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory; /* スナップ機能 */
+            display: flex; /* 横並び */
+        }
+
+        /* ウィジェット共通設定 */
+        .widget {
+            flex: 0 0 50vw; /* 幅は画面の半分固定 */
+            height: 100vh;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
             position: relative;
         }
 
-        /* 時計画面のスタイル */
-        .time-display {
-            font-size: 25vw; /* 画面幅に応じた巨大文字 */
-            font-weight: 700;
-            line-height: 1;
-            font-variant-numeric: tabular-nums; /* 数字の幅を等幅にする */
+        /* --- Widget 1: カレンダー --- */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
+            font-size: 2.5vw;
         }
-        .date-display {
-            font-size: 5vw;
-            color: #888;
+        .calendar-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--theme-color);
+        }
+        .day-name {
+            font-size: 2vw;
+            opacity: 0.6;
+        }
+        .today {
+            background-color: var(--theme-color);
+            color: var(--bg-color);
+            border-radius: 50%;
+            font-weight: bold;
+        }
+
+        /* --- Widget 2: 天気 --- */
+        .weather-info {
+            text-align: center;
+        }
+        .temp-big {
+            font-size: 10vw;
+            font-weight: bold;
+        }
+        .weather-desc {
+            font-size: 4vw;
+            margin-bottom: 20px;
+        }
+        .location-btn {
+            background: transparent;
+            border: 1px solid var(--theme-color);
+            color: var(--theme-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 1.2rem;
             margin-top: 10px;
+            cursor: pointer;
         }
 
-        /* ダミー画面（将来の拡張用） */
-        .placeholder-text {
-            font-size: 3vw;
-            color: #555;
+        /* --- Widget 3: メモ --- */
+        textarea.memo-area {
+            width: 90%;
+            height: 60%;
+            background: transparent;
+            border: 2px solid var(--dim-color);
+            color: var(--theme-color);
+            font-size: 1.5rem;
+            padding: 10px;
+            border-radius: 10px;
+            resize: none;
+            font-family: inherit;
+        }
+        textarea.memo-area:focus {
+            outline: none;
+            border-color: var(--theme-color);
         }
 
-        /* 初回タップ用のオーバーレイ（Wake Lock有効化のため） */
+        /* モード切替ボタン（画面左下） */
+        #mode-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border: none;
+            color: var(--theme-color);
+            font-size: 20px;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        /* 初回オーバーレイ */
         #start-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 999;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 999;
             flex-direction: column;
         }
-        #start-overlay button {
-            padding: 15px 30px;
-            font-size: 1.2rem;
+        button.start-btn {
+            padding: 15px 40px;
+            font-size: 1.5rem;
             background: #333;
             color: #fff;
-            border: 1px solid #555;
-            border-radius: 8px;
-            cursor: pointer;
+            border: none;
+            border-radius: 10px;
         }
     </style>
 </head>
 <body>
 
     <div id="start-overlay">
-        <p>画面を常時ONにするため<br>ボタンを押して開始してください</p>
-        <button onclick="startApp()">スタンバイ開始</button>
+        <p style="color:#888; margin-bottom:20px;">画面をタップして開始</p>
+        <button class="start-btn" onclick="startApp()">Start</button>
     </div>
 
-    <div class="container">
-        <section id="clock-screen">
-            <div class="time-display" id="clock">00:00</div>
-            <div class="date-display" id="date">1月1日(月)</div>
-        </section>
+    <button id="mode-toggle" onclick="toggleNightMode()">☀</button>
 
-        <section id="calendar-screen">
-            <h2>Calendar</h2>
-            <p class="placeholder-text">ここにカレンダーを表示</p>
-        </section>
+    <div class="main-container">
+        <div class="left-pane">
+            <div class="clock-time" id="clock">00:00</div>
+            <div class="clock-date" id="date">1月1日(月)</div>
+        </div>
 
-        <section id="memo-screen">
-            <h2>Memo</h2>
-            <p class="placeholder-text">ここにメモを表示</p>
-        </section>
+        <div class="right-pane">
+            
+            <div class="widget">
+                <h2>Weather</h2>
+                <div id="weather-display">
+                    <button class="location-btn" onclick="getWeather()">現在地の天気を取得</button>
+                </div>
+            </div>
+
+            <div class="widget">
+                <h2 id="cal-title">Calendar</h2>
+                <div class="calendar-grid" id="calendar">
+                    </div>
+            </div>
+
+            <div class="widget">
+                <h2>Memo</h2>
+                <textarea class="memo-area" id="memo-pad" placeholder="Tap to write..." oninput="saveMemo()"></textarea>
+            </div>
+
+        </div>
     </div>
 
     <script>
-        // --- 時計機能 ---
+        // --- 1. 時計機能 ---
         function updateClock() {
             const now = new Date();
-            
-            // 時刻 (HH:MM:SS)
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0'); // 秒まで表示
-            document.getElementById('clock').innerText = `${hours}:${minutes}:${seconds}`;
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            // 秒を小さく表示する工夫
+            document.getElementById('clock').innerHTML = 
+                `${hours}:${minutes}<span style="font-size:0.5em; opacity:0.8;">${seconds}</span>`;
 
-            // 日付 (M月D日(曜日))
             const days = ['日', '月', '火', '水', '木', '金', '土'];
-            const month = now.getMonth() + 1;
-            const date = now.getDate();
-            const day = days[now.getDay()];
-            document.getElementById('date').innerText = `${month}月${date}日(${day})`;
+            document.getElementById('date').innerText = 
+                `${now.getMonth() + 1}月${now.getDate()}日 (${days[now.getDay()]})`;
+        }
+        setInterval(updateClock, 1000);
+
+        // --- 2. カレンダー生成 ---
+        function renderCalendar() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            
+            document.getElementById('cal-title').innerText = `${year}年 ${month + 1}月`;
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const lastDate = new Date(year, month + 1, 0).getDate();
+            
+            let html = '';
+            const weekDays = ['日','月','火','水','木','金','土'];
+            weekDays.forEach(d => html += `<div class="calendar-header">${d}</div>`);
+
+            // 空白セル
+            for(let i=0; i<firstDay; i++) html += `<div></div>`;
+
+            // 日付セル
+            for(let i=1; i<=lastDate; i++) {
+                const isToday = i === now.getDate() ? 'today' : '';
+                html += `<div class="${isToday}">${i}</div>`;
+            }
+            document.getElementById('calendar').innerHTML = html;
+        }
+        renderCalendar();
+
+        // --- 3. 天気予報 (Open-Meteo API) ---
+        function getWeather() {
+            document.getElementById('weather-display').innerHTML = '取得中...';
+            
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                
+                try {
+                    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`);
+                    const data = await res.json();
+                    const temp = data.current_weather.temperature;
+                    const code = data.current_weather.weathercode;
+                    
+                    // 簡易天気コード変換
+                    let weatherName = '晴れ';
+                    if(code > 3) weatherName = '曇り';
+                    if(code > 50) weatherName = '雨';
+                    if(code > 70) weatherName = '雪';
+
+                    document.getElementById('weather-display').innerHTML = `
+                        <div class="temp-big">${temp}°C</div>
+                        <div class="weather-desc">${weatherName}</div>
+                    `;
+                } catch(e) {
+                    document.getElementById('weather-display').innerText = 'エラー: ' + e;
+                }
+            }, (err) => {
+                document.getElementById('weather-display').innerText = '位置情報の許可が必要です';
+            });
         }
 
-        setInterval(updateClock, 1000); // 1秒ごとに更新
-        updateClock(); // 即時実行
+        // --- 4. メモ機能 (保存) ---
+        const savedMemo = localStorage.getItem('my_standby_memo');
+        if(savedMemo) document.getElementById('memo-pad').value = savedMemo;
 
-        // --- Wake Lock (画面常時ON) ---
-        let wakeLock = null;
+        function saveMemo() {
+            const text = document.getElementById('memo-pad').value;
+            localStorage.setItem('my_standby_memo', text);
+        }
 
-        async function requestWakeLock() {
+        // --- 5. 夜間モード切替 ---
+        function toggleNightMode() {
+            document.body.classList.toggle('night-mode');
+            const btn = document.getElementById('mode-toggle');
+            btn.innerText = document.body.classList.contains('night-mode') ? '☾' : '☀';
+        }
+
+        // --- 6. アプリ開始 & Wake Lock ---
+        async function startApp() {
+            document.getElementById('start-overlay').style.display = 'none';
+            document.documentElement.requestFullscreen().catch(()=>{});
+            
             try {
                 if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    console.log('Wake Lock active');
-                    
-                    // 解除されたら再取得を試みる（タブ切り替えなどで切れるため）
-                    wakeLock.addEventListener('release', () => {
-                        console.log('Wake Lock released');
-                    });
+                    let lock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock ON');
                 }
-            } catch (err) {
-                console.error(`${err.name}, ${err.message}`);
-            }
+            } catch(e) { console.log(e); }
         }
-
-        // --- アプリ開始処理 ---
-        function startApp() {
-            document.getElementById('start-overlay').style.display = 'none';
-            // ユーザーアクション（タップ）をトリガーにWake Lockを要求
-            requestWakeLock();
-            
-            // フルスクリーン化（簡易的）
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(e => console.log(e));
-            }
-        }
-
-        // タブがアクティブに戻った時にWake Lockを再取得
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') {
-                await requestWakeLock();
-            }
-        });
     </script>
 </body>
 </html>
