@@ -248,8 +248,17 @@
             initAudio(); if(currentOsc) stopAlarmSound();
             const t0 = ac.currentTime; const osc = ac.createOscillator(); const gain = ac.createGain();
             osc.type = 'square'; osc.frequency.setValueAtTime(880, t0);
-            gain.gain.setValueAtTime(0.5, t0);
-            for(let i=0; i<30; i++) { let start = t0 + i * 0.2; gain.gain.setValueAtTime(0.5, start); gain.gain.setValueAtTime(0, start + 0.1); }
+            
+            // ★音量を 0.5 → 0.15 に下げました
+            gain.gain.setValueAtTime(0.15, t0);
+            
+            for(let i=0; i<30; i++) { 
+                let start = t0 + i * 0.2; 
+                // ★ここも 0.15 に変更
+                gain.gain.setValueAtTime(0.15, start); 
+                gain.gain.setValueAtTime(0, start + 0.1); 
+            }
+            
             osc.connect(gain); gain.connect(ac.destination); osc.start(); currentOsc = osc;
             alarmTimeout = setTimeout(() => stopAlarmUser(), 5000);
         }
