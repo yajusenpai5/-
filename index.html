@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Standby Pro V10</title>
+    <title>Standby Pro V11</title>
     <style>
         :root {
             --bg-color: #0f172a; 
@@ -102,14 +102,12 @@
         .cal-head { background: transparent; color: var(--active-dot); font-weight: bold; font-size: 3vw; align-items: flex-end; padding-bottom: 5px; }
         .today-cell { background: var(--active-dot); color: #000; font-weight: bold; border-radius: 8px; }
 
-        /* ToDo */
         .todo-box { width: 95%; height: 90%; display: flex; flex-direction: column; }
         .todo-input-row { display: flex; gap: 5px; margin-bottom: 10px; }
         .todo-text { flex: 1; min-width: 0; padding: 10px; border-radius: 8px; border:none; background:rgba(255,255,255,0.1); color:var(--theme-color);}
         .todo-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
         .todo-item { background: var(--item-bg); padding: 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
 
-        /* 天気 */
         .full-weather-box { width: 95%; height: 95%; display: flex; flex-direction: column; gap: 10px; }
         .hourly-section { height: 35%; width: 100%; background: var(--item-bg); border-radius: 12px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; }
         .hourly-scroll { display: flex; overflow-x: auto; gap: 15px; height: 100%; align-items: center; -ms-overflow-style: none; scrollbar-width: none; }
@@ -128,21 +126,35 @@
             background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
             color: var(--theme-color); display: flex; justify-content: center; align-items: center;
         }
-        #overlay { position: fixed; inset: 0; background: #000; z-index: 999; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        /* アラーム鳴動時のオーバーレイ（タップで停止） */
+        #alarm-overlay {
+            position: fixed; inset: 0; background: rgba(255, 69, 58, 0.3); z-index: 2000;
+            display: none; justify-content: center; align-items: center;
+            flex-direction: column; cursor: pointer;
+            animation: flash 1s infinite;
+        }
+        @keyframes flash { 0% { opacity: 0.8; } 50% { opacity: 0.2; } 100% { opacity: 0.8; } }
+        
+        #overlay { position: fixed; inset: 0; background: #000; z-index: 3000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h3>Standby V10</h3>
-        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">音が出ない不具合修正版 & 時報機能</p>
+        <h3>Standby V11</h3>
+        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">音改善 & タップ停止機能</p>
         <button class="btn primary" onclick="start()">Start</button>
+    </div>
+
+    <div id="alarm-overlay" onclick="stopAlarmUser()">
+        <h1 style="color: #fff; text-shadow: 0 0 10px #000;">TAP TO STOP</h1>
+        <p style="color: #fff;">画面タップで停止</p>
     </div>
 
     <button id="mode-btn" onclick="toggleMode()">☾</button>
 
     <div class="main-container">
-        
         <div class="split-pane left-pane">
             <div class="swipe-container" id="left-scroll" onscroll="syncNav('left')">
                 <div class="page-section">
@@ -170,14 +182,12 @@
                     </div>
                     <div id="timer-run" style="display:none; flex-direction:column; align-items:center;">
                         <div style="font-size:10vw; font-weight:bold; font-variant-numeric:tabular-nums;" id="t-disp">00:00</div>
-                        <button class="btn" onclick="resetTimer()" style="margin-top:10px;">Stop</button>
+                        <button class="btn" onclick="resetTimer()">Stop</button>
                     </div>
                 </div>
             </div>
             <div class="nav-dots">
-                <div class="dot active" id="dot-left-0"></div>
-                <div class="dot" id="dot-left-1"></div>
-                <div class="dot" id="dot-left-2"></div>
+                <div class="dot active" id="dot-left-0"></div><div class="dot" id="dot-left-1"></div><div class="dot" id="dot-left-2"></div>
             </div>
         </div>
 
@@ -196,14 +206,8 @@
                 </div>
                 <div class="page-section">
                     <div class="cal-header-row">
-                        <div class="cal-date-info">
-                            <div class="cal-ym-big" id="cal-ym">2026.1</div>
-                            <div class="cal-era-sub" id="cal-era">令和8年</div>
-                        </div>
-                        <div class="cal-weather-info" id="cal-w-info">
-                            <div class="w-icon-big" id="w-icon">🤔</div>
-                            <div class="w-detail"><span id="w-tmp" style="font-weight:bold;">--°</span></div>
-                        </div>
+                        <div class="cal-date-info"><div class="cal-ym-big" id="cal-ym">--</div><div class="cal-era-sub" id="cal-era">--</div></div>
+                        <div class="cal-weather-info" id="cal-w-info"><div class="w-icon-big" id="w-icon">🤔</div><div class="w-detail"><span id="w-tmp">--°</span></div></div>
                     </div>
                     <div class="cal-container"><div class="cal-grid" id="cal-grid"></div></div>
                 </div>
@@ -223,64 +227,85 @@
     </div>
 
     <script>
-        // === オーディオコア機能 (修正版) ===
-        let ac; // AudioContext
+        // === オーディオエンジン (iOS対応強化版) ===
+        let ac; 
+        let currentOsc = null;
+        let alarmTimeout = null;
 
-        // 強制初期化関数
         function initAudio() {
-            if (!ac) {
-                ac = new (window.AudioContext || window.webkitAudioContext)();
+            if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+            if (ac.state === 'suspended') ac.resume();
+        }
+
+        // ビープ音生成 (ループ再生対応)
+        function playBeepLoop() {
+            initAudio();
+            if(currentOsc) stopAlarmSound(); // 既存の音があれば消す
+
+            const t0 = ac.currentTime;
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(880, t0); // A5
+
+            // ピピピピ…というリズムを作る
+            // 0.1秒鳴って0.1秒止まる、を繰り返すエンベロープ
+            gain.gain.setValueAtTime(0.5, t0);
+            for(let i=0; i<30; i++) { // 30回繰り返す(約6秒分確保)
+                let start = t0 + i * 0.2;
+                gain.gain.setValueAtTime(0.5, start);
+                gain.gain.setValueAtTime(0, start + 0.1);
             }
-            // 重要: iOS対策。SuspendedならResumeする
-            if (ac.state === 'suspended') {
-                ac.resume();
+
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            osc.start();
+            currentOsc = osc;
+
+            // 5秒後に自動停止
+            alarmTimeout = setTimeout(() => {
+                stopAlarmUser(); // ユーザー停止と同じ処理
+            }, 5000);
+        }
+
+        function stopAlarmSound() {
+            if(currentOsc) {
+                try { currentOsc.stop(); } catch(e){}
+                currentOsc = null;
+            }
+            if(alarmTimeout) {
+                clearTimeout(alarmTimeout);
+                alarmTimeout = null;
             }
         }
 
-        // 音再生関数（周波数とタイプ指定）
-        function playTone(freq, type, duration) {
-            initAudio(); // 念のため再確認
+        // 時報 (単発音)
+        function playTone(freq, duration) {
+            initAudio();
             const osc = ac.createOscillator();
             const gain = ac.createGain();
-            
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, ac.currentTime);
-            
-            gain.gain.setValueAtTime(0.5, ac.currentTime);
+            osc.frequency.value = freq;
+            gain.gain.value = 0.5;
             gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + duration);
-            
             osc.connect(gain);
             gain.connect(ac.destination);
-            
             osc.start();
             osc.stop(ac.currentTime + duration);
         }
 
-        // アラーム/タイマー音 (ビーッ)
-        function beep() {
-            playTone(880, 'sine', 0.5);
-        }
-
-        // 時報 (ポーン)
-        function playChime(isMidnight) {
-            if(isMidnight) {
-                // 0時は特別：高い音でキラリと
-                playTone(1046.50, 'sine', 0.8); // C6
-                setTimeout(() => playTone(1318.51, 'sine', 1.0), 200); // E6
-            } else {
-                // 通常時：落ち着いたポーン
-                playTone(880, 'sine', 1.0); // A5
-            }
-        }
-
+        // === アプリ起動 ===
         async function start() {
-            // Startボタン押下時にAudioContextを確実に起こす
             initAudio();
-            // 無音を一瞬再生してiOSのオーディオロックを解除するハック
-            playTone(0, 'sine', 0.1);
-
+            // 無音再生でiOSのオーディオロック解除
+            playTone(0, 0.1);
+            
             document.getElementById('overlay').style.display = 'none';
             
+            // 設定復元
+            let savedChime = localStorage.getItem('standby_chime');
+            if(savedChime === 'true') toggleChime(); // ONなら切り替え
+
             let m=localStorage.getItem('tm_m'), s=localStorage.getItem('tm_s');
             if(m) document.getElementById('t-min').value=m;
             if(s) document.getElementById('t-sec').value=s;
@@ -291,112 +316,73 @@
             renderCal();
         }
 
-        // === 時報ロジック ===
+        // === アラーム発火・停止ロジック ===
+        function triggerAlarmUI() {
+            document.getElementById('alarm-overlay').style.display = 'flex';
+            playBeepLoop(); // 5秒間音が鳴る
+        }
+
+        function stopAlarmUser() {
+            stopAlarmSound(); // 音を止める
+            document.getElementById('alarm-overlay').style.display = 'none'; // 画面を戻す
+        }
+
+        // === 時報 ===
         let chimeOn = false;
         function toggleChime() {
             chimeOn = !chimeOn;
+            localStorage.setItem('standby_chime', chimeOn); // 保存
             const box = document.getElementById('chime-box');
-            const icon = document.getElementById('chime-icon');
             if(chimeOn) {
                 box.classList.add('active');
-                icon.innerText = "🔔 ON";
-                // 確認音
-                playChime(false); 
+                document.getElementById('chime-icon').innerText = "🔔 ON";
+                playTone(880, 0.5); // 確認音
             } else {
                 box.classList.remove('active');
-                icon.innerText = "🔔 OFF";
+                document.getElementById('chime-icon').innerText = "🔔 OFF";
             }
         }
 
-        // === 時計 & 監視ループ ===
+        // === 監視ループ ===
         setInterval(()=>{
             let d=new Date();
             let h=d.getHours(), m=d.getMinutes(), s=d.getSeconds();
             
-            // 表示更新
-            let hStr = String(h).padStart(2,'0');
-            let mStr = String(m).padStart(2,'0');
-            let sStr = String(s).padStart(2,'0');
-            document.getElementById('clock').innerHTML = `${hStr}:${mStr}<span style="font-size:0.5em">${sStr}</span>`;
+            document.getElementById('clock').innerHTML = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}<span style="font-size:0.5em">${String(s).padStart(2,'0')}</span>`;
             document.getElementById('date').innerText = `${d.getMonth()+1}/${d.getDate()} (${['日','月','火','水','木','金','土'][d.getDay()]})`;
 
-            // 00秒のときだけチェック
             if(s === 0) {
-                // 1. アラーム
-                checkAlarm(hStr, mStr);
-                // 2. ToDo
-                checkTodo(hStr, mStr);
-                // 3. 時報
+                checkAlarm(h, m);
+                checkTodo(h, m);
+                // 時報
                 if(chimeOn && m === 0) {
-                    playChime(h === 0); // 0時ならTrue
+                    if(h === 0) { // 0時は特別
+                         playTone(1046, 0.5); // C6
+                         setTimeout(()=>playTone(1318, 0.8), 200); // E6
+                    } else {
+                        playTone(880, 0.8); // 通常
+                    }
                 }
             }
         }, 1000);
 
-        // === ナビゲーション ===
-        function syncNav(side){
-            let c=document.getElementById(side+'-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth);
-            let max = 3; // 左右ともに3ページ
-            for(let i=0; i<max; i++){
-                let d = document.getElementById(`dot-${side}-${i}`);
-                if(d) d.classList.toggle('active', i===idx);
-            }
-        }
-
-        // === 天気 (前回と同じ) ===
-        function getWeatherIcon(code) {
-            if(code===0) return "☀️"; if(code<=3) return "🌤️"; if(code<=48) return "🌫️";
-            if(code<=67) return "☔"; if(code<=77) return "❄️"; if(code<=82) return "☔";
-            if(code<=99) return "⛈️"; return "☁️";
-        }
-        function fetchAllWeather(){
-            navigator.geolocation.getCurrentPosition(async p=>{
-                try{
-                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
-                    const res = await fetch(url);
-                    const d = await res.json();
-                    
-                    const cur = d.current_weather;
-                    document.getElementById('w-tmp').innerText = Math.round(cur.temperature) + "°";
-                    document.getElementById('w-icon').innerText = getWeatherIcon(cur.weathercode);
-
-                    const hTimes = d.hourly.time; const hTemps = d.hourly.temperature_2m; const hCodes = d.hourly.weathercode;
-                    let hHtml = '';
-                    const nowIso = new Date().toISOString().slice(0,13);
-                    let startIdx = hTimes.findIndex(t => t.startsWith(nowIso));
-                    if(startIdx === -1) startIdx = 0;
-                    for(let i=startIdx; i < startIdx+24 && i < hTimes.length; i++){
-                        const dateObj = new Date(hTimes[i]);
-                        const hourStr = dateObj.getHours() + ":00";
-                        const icon = getWeatherIcon(hCodes[i]);
-                        const temp = Math.round(hTemps[i]);
-                        hHtml += `<div class="hour-item"><div style="font-size:0.8rem; opacity:0.7;">${hourStr}</div><div style="font-size:1.5rem; margin:5px 0;">${icon}</div><div style="font-weight:bold;">${temp}°</div></div>`;
-                    }
-                    document.getElementById('hourly-list').innerHTML = hHtml;
-
-                    const dayTimes = d.daily.time; const dayCodes = d.daily.weathercode; const maxs = d.daily.temperature_2m_max; const mins = d.daily.temperature_2m_min;
-                    let wHtml = '';
-                    for(let i=0; i < dayTimes.length; i++){
-                        const dateObj = new Date(dayTimes[i]);
-                        const m = dateObj.getMonth()+1; const date = dateObj.getDate();
-                        const wDay = ['日','月','火','水','木','金','土'][dateObj.getDay()];
-                        const icon = getWeatherIcon(dayCodes[i]);
-                        wHtml += `<div class="week-row"><div class="w-day">${m}/${date}(${wDay})</div><div class="w-icon-sm">${icon}</div><div class="w-temp-range"><span style="color:#ff6b6b">${Math.round(maxs[i])}°</span> / <span style="color:#4dabf7">${Math.round(mins[i])}°</span></div></div>`;
-                    }
-                    document.getElementById('weekly-list').innerHTML = wHtml;
-                }catch(e){}
-            });
-        }
-        function toggleMode(){ document.body.classList.toggle('night-mode'); }
-
-        // === アラーム・タイマー・ToDo (前回と同じ) ===
+        // === 機能ロジック ===
         let alOn=false;
         function toggleAlarm(){
             let v=document.getElementById('alarm-in').value; if(!v)return;
-            alOn=!alOn; let b=document.getElementById('alarm-btn'), s=document.getElementById('alarm-stat');
-            b.innerText=alOn?"ON":"OFF"; b.classList.toggle('primary', alOn); s.innerText=alOn?v+" 待機中":"OFF";
+            alOn=!alOn;
+            let b=document.getElementById('alarm-btn'), s=document.getElementById('alarm-stat');
+            b.innerText=alOn?"ON":"OFF"; b.classList.toggle('primary', alOn);
+            s.innerText=alOn?v+" 待機中":"OFF";
         }
-        function checkAlarm(hStr,mStr){ if(alOn && document.getElementById('alarm-in').value===`${hStr}:${mStr}`){ beep(); alert("ALARM"); toggleAlarm(); }}
+        function checkAlarm(h,m){
+            let setVal = document.getElementById('alarm-in').value;
+            let nowVal = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            if(alOn && setVal === nowVal){
+                triggerAlarmUI(); // オーバーレイと音
+                toggleAlarm(); // 1回鳴ったらOFFへ
+            }
+        }
 
         let tmInt, tmTot=0;
         function startTimer(){
@@ -404,7 +390,10 @@
             if(m===0&&s===0)return;
             localStorage.setItem('tm_m',m); localStorage.setItem('tm_s',s);
             tmTot=m*60+s; document.getElementById('timer-set').style.display='none'; document.getElementById('timer-run').style.display='flex'; updTm();
-            tmInt=setInterval(()=>{ if(tmTot<=0){ resetTimer(); beep(); alert("Time Up"); } else{ tmTot--; updTm(); } },1000);
+            tmInt=setInterval(()=>{ 
+                if(tmTot<=0){ resetTimer(); triggerAlarmUI(); } // 終了時に発火
+                else{ tmTot--; updTm(); } 
+            },1000);
         }
         function resetTimer(){ clearInterval(tmInt); document.getElementById('timer-set').style.display='flex'; document.getElementById('timer-run').style.display='none'; }
         function updTm(){ let m=Math.floor(tmTot/60).toString().padStart(2,'0'), s=(tmTot%60).toString().padStart(2,'0'); document.getElementById('t-disp').innerText=`${m}:${s}`; }
@@ -421,15 +410,48 @@
             });
         }
         function doneTd(id){ todos=todos.filter(x=>x.id!==id); saveTd(); }
-        function checkTodo(hStr,mStr){ let now=`${hStr}:${mStr}`; todos.forEach(x=>{ if(x.tm===now && !x.nt){ beep(); alert(x.t); x.nt=true; saveTd(); }}); }
+        function checkTodo(h,m){
+            let nowVal = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            todos.forEach(x=>{ 
+                if(x.tm===nowVal && !x.nt){ 
+                    triggerAlarmUI(); // ToDoも同じ音
+                    x.nt=true; saveTd(); 
+                }
+            }); 
+        }
 
+        // 天気・カレンダー・ナビ (変更なし)
+        function getWeatherIcon(code) { if(code===0) return "☀️"; if(code<=3) return "🌤️"; if(code<=48) return "🌫️"; if(code<=67) return "☔"; if(code<=77) return "❄️"; if(code<=82) return "☔"; if(code<=99) return "⛈️"; return "☁️"; }
+        function fetchAllWeather(){
+            navigator.geolocation.getCurrentPosition(async p=>{
+                try{
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
+                    const res = await fetch(url); const d = await res.json();
+                    document.getElementById('w-tmp').innerText = Math.round(d.current_weather.temperature) + "°";
+                    document.getElementById('w-icon').innerText = getWeatherIcon(d.current_weather.weathercode);
+                    let hHtml = '', startIdx = d.hourly.time.findIndex(t => t.startsWith(new Date().toISOString().slice(0,13)));
+                    if(startIdx===-1) startIdx=0;
+                    for(let i=startIdx; i<startIdx+24 && i<d.hourly.time.length; i++){
+                        hHtml += `<div class="hour-item"><div style="font-size:0.8rem; opacity:0.7;">${new Date(d.hourly.time[i]).getHours()}:00</div><div style="font-size:1.5rem; margin:5px 0;">${getWeatherIcon(d.hourly.weathercode[i])}</div><div style="font-weight:bold;">${Math.round(d.hourly.temperature_2m[i])}°</div></div>`;
+                    }
+                    document.getElementById('hourly-list').innerHTML = hHtml;
+                    let wHtml = '';
+                    for(let i=0; i<d.daily.time.length; i++){
+                        let dt=new Date(d.daily.time[i]);
+                        wHtml += `<div class="week-row"><div class="w-day">${dt.getMonth()+1}/${dt.getDate()}(${['日','月','火','水','木','金','土'][dt.getDay()]})</div><div class="w-icon-sm">${getWeatherIcon(d.daily.weathercode[i])}</div><div class="w-temp-range"><span style="color:#ff6b6b">${Math.round(d.daily.temperature_2m_max[i])}°</span>/<span style="color:#4dabf7">${Math.round(d.daily.temperature_2m_min[i])}°</span></div></div>`;
+                    }
+                    document.getElementById('weekly-list').innerHTML = wHtml;
+                }catch(e){}
+            });
+        }
+        function toggleMode(){ document.body.classList.toggle('night-mode'); }
+        function syncNav(side){
+            let c=document.getElementById(side+'-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth);
+            for(let i=0; i<3; i++){ let d=document.getElementById(`dot-${side}-${i}`); if(d) d.classList.toggle('active', i===idx); }
+        }
         function renderCal(){
-            let n=new Date(); let y=n.getFullYear(), m=n.getMonth();
-            try {
-                let era = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {year:'numeric'}).format(n);
-                if(!era.match(/年/)) era = y + "年"; else era = era.split('年')[0] + '年';
-                document.getElementById('cal-era').innerText = era;
-            } catch(e) { document.getElementById('cal-era').innerText = y+"年"; }
+            let n=new Date(), y=n.getFullYear(), m=n.getMonth();
+            try { let era = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {year:'numeric'}).format(n); document.getElementById('cal-era').innerText = era.match(/年/) ? era.split('年')[0]+'年' : y+"年"; } catch(e) { document.getElementById('cal-era').innerText = y+"年"; }
             document.getElementById('cal-ym').innerText = `${y}.${m+1}`;
             let html='', fd=new Date(y,m,1).getDay(), ld=new Date(y,m+1,0).getDate();
             ['日','月','火','水','木','金','土'].forEach(d=>html+=`<div class="cal-cell cal-head">${d}</div>`);
