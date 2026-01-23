@@ -254,7 +254,7 @@
             alarmTimeout = setTimeout(() => stopAlarmUser(), 5000);
         }
         function stopAlarmSound() { if(currentOsc) { try{currentOsc.stop();}catch(e){} currentOsc=null; } if(alarmTimeout){ clearTimeout(alarmTimeout); alarmTimeout=null; } }
-        function playTone(f, d) { initAudio(); const o=ac.createOscillator(); const g=ac.createGain(); o.frequency.value=f; g.gain.value=1.5; g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+d); o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+d); }
+        function playTone(f, d) { initAudio(); const o=ac.createOscillator(); const g=ac.createGain(); o.frequency.value=f; g.gain.value=2.5; g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+d); o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+d); }
 
         // === アプリ起動 ===
         async function start() {
