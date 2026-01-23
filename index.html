@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Standby Pro V9</title>
+    <title>Standby Pro V10</title>
     <style>
         :root {
             --bg-color: #0f172a; 
@@ -60,6 +60,14 @@
         .clock-time { font-size: 11vw; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -2px; white-space: nowrap; }
         .clock-date { font-size: 3.5vw; margin-top: 5px; opacity: 0.8; }
         
+        /* 時報スイッチ */
+        .chime-toggle-box {
+            margin-top: 20px; display: flex; align-items: center; gap: 10px;
+            background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 20px;
+            cursor: pointer; transition: 0.3s;
+        }
+        .chime-toggle-box.active { background: var(--active-dot); color: #000; font-weight: bold; }
+        
         .title-label { font-size: 0.9rem; opacity: 0.6; margin-bottom: 10px; letter-spacing: 2px; text-transform: uppercase; }
         .input-group { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; }
         .num-input {
@@ -71,10 +79,6 @@
             background: rgba(255,255,255,0.15); color: var(--theme-color); cursor: pointer; white-space: nowrap;
         }
         .btn.primary { background: var(--theme-color); color: var(--bg-color); font-weight: bold; }
-        .btn.active-sound { background: var(--active-dot); color: #000; font-weight: bold; box-shadow: 0 0 10px var(--active-dot); }
-
-        .sound-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 85%; }
-        .sound-btn { padding: 12px; font-size: 0.9rem; border-radius: 12px; }
 
         .nav-dots {
             height: 25px; display: flex; justify-content: center; gap: 8px; align-items: center;
@@ -84,8 +88,6 @@
         .dot.active { background: var(--active-dot); transform: scale(1.5); }
 
         /* === 右側 === */
-        
-        /* カレンダー */
         .cal-header-row { width: 92%; display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; padding-top: 10px; }
         .cal-date-info { text-align: left; }
         .cal-ym-big { font-size: 6vw; font-weight: bold; line-height: 1; }
@@ -107,36 +109,14 @@
         .todo-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
         .todo-item { background: var(--item-bg); padding: 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
 
-        /* === 本格天気予報 === */
-        .full-weather-box {
-            width: 95%; height: 95%; display: flex; flex-direction: column; gap: 10px;
-        }
-        /* 1時間ごとの天気 (横スクロール) */
-        .hourly-section {
-            height: 35%; width: 100%;
-            background: var(--item-bg); border-radius: 12px; padding: 10px; box-sizing: border-box;
-            display: flex; flex-direction: column;
-        }
-        .hourly-scroll {
-            display: flex; overflow-x: auto; gap: 15px; height: 100%; align-items: center;
-            -ms-overflow-style: none; scrollbar-width: none;
-        }
+        /* 天気 */
+        .full-weather-box { width: 95%; height: 95%; display: flex; flex-direction: column; gap: 10px; }
+        .hourly-section { height: 35%; width: 100%; background: var(--item-bg); border-radius: 12px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; }
+        .hourly-scroll { display: flex; overflow-x: auto; gap: 15px; height: 100%; align-items: center; -ms-overflow-style: none; scrollbar-width: none; }
         .hourly-scroll::-webkit-scrollbar { display: none; }
-        .hour-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            min-width: 50px; flex-shrink: 0;
-        }
-        
-        /* 週間天気 (縦リスト) */
-        .weekly-section {
-            flex: 1; width: 100%;
-            background: var(--item-bg); border-radius: 12px; padding: 10px; box-sizing: border-box;
-            display: flex; flex-direction: column; overflow-y: auto;
-        }
-        .week-row {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 5px; border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
+        .hour-item { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 50px; flex-shrink: 0; }
+        .weekly-section { flex: 1; width: 100%; background: var(--item-bg); border-radius: 12px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; overflow-y: auto; }
+        .week-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .week-row:last-child { border-bottom: none; }
         .w-day { width: 60px; font-weight: bold; }
         .w-icon-sm { font-size: 1.5rem; }
@@ -154,8 +134,8 @@
 <body>
 
     <div id="overlay">
-        <h3>Standby V9</h3>
-        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">本格天気予報 & 自動更新</p>
+        <h3>Standby V10</h3>
+        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">音が出ない不具合修正版 & 時報機能</p>
         <button class="btn primary" onclick="start()">Start</button>
     </div>
 
@@ -168,14 +148,9 @@
                 <div class="page-section">
                     <div class="clock-time" id="clock">00:00</div>
                     <div class="clock-date" id="date">--/--</div>
-                </div>
-                <div class="page-section">
-                    <div class="title-label">NOISE</div>
-                    <div class="sound-grid">
-                        <button class="btn sound-btn" id="btn-white" onclick="toggleNoise('white')">ホワイト</button>
-                        <button class="btn sound-btn" id="btn-brown" onclick="toggleNoise('brown')">ブラウン</button>
-                        <button class="btn sound-btn" id="btn-rain" onclick="toggleNoise('rain')">雨音</button>
-                        <button class="btn sound-btn" onclick="stopNoise()">OFF</button>
+                    <div class="chime-toggle-box" id="chime-box" onclick="toggleChime()">
+                        <span id="chime-icon">🔔 OFF</span>
+                        <span style="font-size:0.8rem;">毎時チャイム</span>
                     </div>
                 </div>
                 <div class="page-section">
@@ -200,14 +175,14 @@
                 </div>
             </div>
             <div class="nav-dots">
-                <div class="dot active" id="dot-left-0"></div><div class="dot" id="dot-left-1"></div>
-                <div class="dot" id="dot-left-2"></div><div class="dot" id="dot-left-3"></div>
+                <div class="dot active" id="dot-left-0"></div>
+                <div class="dot" id="dot-left-1"></div>
+                <div class="dot" id="dot-left-2"></div>
             </div>
         </div>
 
         <div class="split-pane">
             <div class="swipe-container" id="right-scroll" onscroll="syncNav('right')">
-                
                 <div class="page-section">
                     <div class="todo-box">
                         <div class="title-label" style="text-align:center; margin-top:10px;">ToDo</div>
@@ -219,7 +194,6 @@
                         <div class="todo-list" id="list"></div>
                     </div>
                 </div>
-
                 <div class="page-section">
                     <div class="cal-header-row">
                         <div class="cal-date-info">
@@ -233,193 +207,196 @@
                     </div>
                     <div class="cal-container"><div class="cal-grid" id="cal-grid"></div></div>
                 </div>
-
                 <div class="page-section">
                     <div class="full-weather-box">
                         <div class="title-label" style="margin-bottom:0; font-size:0.8rem;">HOURLY</div>
-                        <div class="hourly-section">
-                            <div class="hourly-scroll" id="hourly-list">
-                                <div class="hour-item">Loading...</div>
-                            </div>
-                        </div>
-                        
+                        <div class="hourly-section"><div class="hourly-scroll" id="hourly-list"><div class="hour-item">Loading...</div></div></div>
                         <div class="title-label" style="margin:5px 0 0 0; font-size:0.8rem;">WEEKLY</div>
-                        <div class="weekly-section" id="weekly-list">
-                            </div>
+                        <div class="weekly-section" id="weekly-list"></div>
                     </div>
                 </div>
-
             </div>
             <div class="nav-dots">
-                <div class="dot active" id="dot-right-0"></div>
-                <div class="dot" id="dot-right-1"></div>
-                <div class="dot" id="dot-right-2"></div>
+                <div class="dot active" id="dot-right-0"></div><div class="dot" id="dot-right-1"></div><div class="dot" id="dot-right-2"></div>
             </div>
         </div>
     </div>
 
     <script>
+        // === オーディオコア機能 (修正版) ===
         let ac; // AudioContext
-        let noiseSrc = null;
 
-        function initAudio() { if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); }
-        function toggleNoise(type) {
-            initAudio(); if (ac.state === 'suspended') ac.resume(); stopNoise();
-            document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active-sound'));
-            document.getElementById('btn-' + type).classList.add('active-sound');
-            const bufferSize = ac.sampleRate * 2;
-            const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
-            const data = buffer.getChannelData(0);
-            let lastOut = 0;
-            for (let i = 0; i < bufferSize; i++) {
-                const white = Math.random() * 2 - 1;
-                if(type === 'white') data[i] = white * 0.5;
-                else { data[i] = (lastOut + (0.02 * white)) / 1.02; lastOut = data[i]; data[i] *= 3.5; }
+        // 強制初期化関数
+        function initAudio() {
+            if (!ac) {
+                ac = new (window.AudioContext || window.webkitAudioContext)();
             }
-            noiseSrc = ac.createBufferSource(); noiseSrc.buffer = buffer; noiseSrc.loop = true;
-            const gain = ac.createGain(); gain.gain.value = 0.5;
-            if(type === 'rain') { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 800; noiseSrc.connect(f); f.connect(gain); }
-            else { noiseSrc.connect(gain); }
-            gain.connect(ac.destination); noiseSrc.start();
+            // 重要: iOS対策。SuspendedならResumeする
+            if (ac.state === 'suspended') {
+                ac.resume();
+            }
         }
-        function stopNoise() { if (noiseSrc) { noiseSrc.stop(); noiseSrc = null; } document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active-sound')); }
+
+        // 音再生関数（周波数とタイプ指定）
+        function playTone(freq, type, duration) {
+            initAudio(); // 念のため再確認
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, ac.currentTime);
+            
+            gain.gain.setValueAtTime(0.5, ac.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            
+            osc.start();
+            osc.stop(ac.currentTime + duration);
+        }
+
+        // アラーム/タイマー音 (ビーッ)
+        function beep() {
+            playTone(880, 'sine', 0.5);
+        }
+
+        // 時報 (ポーン)
+        function playChime(isMidnight) {
+            if(isMidnight) {
+                // 0時は特別：高い音でキラリと
+                playTone(1046.50, 'sine', 0.8); // C6
+                setTimeout(() => playTone(1318.51, 'sine', 1.0), 200); // E6
+            } else {
+                // 通常時：落ち着いたポーン
+                playTone(880, 'sine', 1.0); // A5
+            }
+        }
 
         async function start() {
-            document.getElementById('overlay').style.display = 'none';
+            // Startボタン押下時にAudioContextを確実に起こす
             initAudio();
+            // 無音を一瞬再生してiOSのオーディオロックを解除するハック
+            playTone(0, 'sine', 0.1);
+
+            document.getElementById('overlay').style.display = 'none';
+            
             let m=localStorage.getItem('tm_m'), s=localStorage.getItem('tm_s');
             if(m) document.getElementById('t-min').value=m;
             if(s) document.getElementById('t-sec').value=s;
             try{if('wakeLock'in navigator)await navigator.wakeLock.request('screen');}catch(e){}
             
-            // 天気取得開始 & 自動更新セット (30分ごと)
             fetchAllWeather();
             setInterval(fetchAllWeather, 30 * 60 * 1000); 
             renderCal();
         }
 
-        // 天気アイコン判定
-        function getWeatherIcon(code) {
-            if(code===0) return "☀️";
-            if(code<=3) return "🌤️";
-            if(code<=48) return "🌫️";
-            if(code<=67) return "☔";
-            if(code<=77) return "❄️";
-            if(code<=82) return "☔";
-            if(code<=99) return "⛈️";
-            return "☁️";
+        // === 時報ロジック ===
+        let chimeOn = false;
+        function toggleChime() {
+            chimeOn = !chimeOn;
+            const box = document.getElementById('chime-box');
+            const icon = document.getElementById('chime-icon');
+            if(chimeOn) {
+                box.classList.add('active');
+                icon.innerText = "🔔 ON";
+                // 確認音
+                playChime(false); 
+            } else {
+                box.classList.remove('active');
+                icon.innerText = "🔔 OFF";
+            }
         }
 
-        // 全天気データ取得 (現在・時間・週間)
-        function fetchAllWeather(){
-            navigator.geolocation.getCurrentPosition(async p=>{
-                try{
-                    // URL構築: current, hourly, daily をまとめて取得
-                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
-                    const res = await fetch(url);
-                    const d = await res.json();
-                    
-                    // 1. カレンダーのミニ天気更新
-                    const cur = d.current_weather;
-                    document.getElementById('w-tmp').innerText = Math.round(cur.temperature) + "°";
-                    document.getElementById('w-icon').innerText = getWeatherIcon(cur.weathercode);
-
-                    // 2. 時間ごとの天気 (Hourly)
-                    const hTimes = d.hourly.time;
-                    const hTemps = d.hourly.temperature_2m;
-                    const hCodes = d.hourly.weathercode;
-                    let hHtml = '';
-                    
-                    // 現在時刻に近いインデックスを探す
-                    const nowIso = new Date().toISOString().slice(0,13); // "2026-01-24T12" まで一致を見る
-                    let startIdx = hTimes.findIndex(t => t.startsWith(nowIso));
-                    if(startIdx === -1) startIdx = 0;
-
-                    // 向こう24時間を表示
-                    for(let i=startIdx; i < startIdx+24 && i < hTimes.length; i++){
-                        const dateObj = new Date(hTimes[i]);
-                        const hourStr = dateObj.getHours() + ":00";
-                        const icon = getWeatherIcon(hCodes[i]);
-                        const temp = Math.round(hTemps[i]);
-                        hHtml += `
-                            <div class="hour-item">
-                                <div style="font-size:0.8rem; opacity:0.7;">${hourStr}</div>
-                                <div style="font-size:1.5rem; margin:5px 0;">${icon}</div>
-                                <div style="font-weight:bold;">${temp}°</div>
-                            </div>
-                        `;
-                    }
-                    document.getElementById('hourly-list').innerHTML = hHtml;
-
-                    // 3. 週間天気 (Weekly)
-                    const dayTimes = d.daily.time;
-                    const dayCodes = d.daily.weathercode;
-                    const maxs = d.daily.temperature_2m_max;
-                    const mins = d.daily.temperature_2m_min;
-                    let wHtml = '';
-
-                    // 1週間分 (当日含む)
-                    for(let i=0; i < dayTimes.length; i++){
-                        const dateObj = new Date(dayTimes[i]);
-                        const m = dateObj.getMonth()+1;
-                        const date = dateObj.getDate();
-                        const wDay = ['日','月','火','水','木','金','土'][dateObj.getDay()];
-                        const icon = getWeatherIcon(dayCodes[i]);
-                        
-                        wHtml += `
-                            <div class="week-row">
-                                <div class="w-day">${m}/${date}(${wDay})</div>
-                                <div class="w-icon-sm">${icon}</div>
-                                <div class="w-temp-range">
-                                    <span style="color:#ff6b6b">${Math.round(maxs[i])}°</span> / 
-                                    <span style="color:#4dabf7">${Math.round(mins[i])}°</span>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    document.getElementById('weekly-list').innerHTML = wHtml;
-
-                }catch(e){ console.log(e); }
-            });
-        }
-
-        // モード切替
-        function toggleMode(){ document.body.classList.toggle('night-mode'); }
-
-        // 時計
+        // === 時計 & 監視ループ ===
         setInterval(()=>{
-            let d=new Date(), h=String(d.getHours()).padStart(2,'0'), m=String(d.getMinutes()).padStart(2,'0'), s=String(d.getSeconds()).padStart(2,'0');
-            document.getElementById('clock').innerHTML=`${h}:${m}<span style="font-size:0.5em">${s}</span>`;
-            document.getElementById('date').innerText=`${d.getMonth()+1}/${d.getDate()} (${['日','月','火','水','木','金','土'][d.getDay()]})`;
-            if(s==='00') { checkAlarm(h,m); checkTodo(h,m); }
-        },1000);
+            let d=new Date();
+            let h=d.getHours(), m=d.getMinutes(), s=d.getSeconds();
+            
+            // 表示更新
+            let hStr = String(h).padStart(2,'0');
+            let mStr = String(m).padStart(2,'0');
+            let sStr = String(s).padStart(2,'0');
+            document.getElementById('clock').innerHTML = `${hStr}:${mStr}<span style="font-size:0.5em">${sStr}</span>`;
+            document.getElementById('date').innerText = `${d.getMonth()+1}/${d.getDate()} (${['日','月','火','水','木','金','土'][d.getDay()]})`;
 
+            // 00秒のときだけチェック
+            if(s === 0) {
+                // 1. アラーム
+                checkAlarm(hStr, mStr);
+                // 2. ToDo
+                checkTodo(hStr, mStr);
+                // 3. 時報
+                if(chimeOn && m === 0) {
+                    playChime(h === 0); // 0時ならTrue
+                }
+            }
+        }, 1000);
+
+        // === ナビゲーション ===
         function syncNav(side){
             let c=document.getElementById(side+'-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth);
-            // 左は4つ(0-3), 右は3つ(0-2)
-            let max = side==='left' ? 4 : 3;
+            let max = 3; // 左右ともに3ページ
             for(let i=0; i<max; i++){
                 let d = document.getElementById(`dot-${side}-${i}`);
                 if(d) d.classList.toggle('active', i===idx);
             }
         }
 
-        function beep(){
-            initAudio(); if(ac.state==='suspended') ac.resume();
-            let o=ac.createOscillator(), g=ac.createGain();
-            o.connect(g); g.connect(ac.destination);
-            o.frequency.value=880; g.gain.value=0.5;
-            g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+0.5);
-            o.start(); o.stop(ac.currentTime+0.5);
+        // === 天気 (前回と同じ) ===
+        function getWeatherIcon(code) {
+            if(code===0) return "☀️"; if(code<=3) return "🌤️"; if(code<=48) return "🌫️";
+            if(code<=67) return "☔"; if(code<=77) return "❄️"; if(code<=82) return "☔";
+            if(code<=99) return "⛈️"; return "☁️";
         }
+        function fetchAllWeather(){
+            navigator.geolocation.getCurrentPosition(async p=>{
+                try{
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
+                    const res = await fetch(url);
+                    const d = await res.json();
+                    
+                    const cur = d.current_weather;
+                    document.getElementById('w-tmp').innerText = Math.round(cur.temperature) + "°";
+                    document.getElementById('w-icon').innerText = getWeatherIcon(cur.weathercode);
 
+                    const hTimes = d.hourly.time; const hTemps = d.hourly.temperature_2m; const hCodes = d.hourly.weathercode;
+                    let hHtml = '';
+                    const nowIso = new Date().toISOString().slice(0,13);
+                    let startIdx = hTimes.findIndex(t => t.startsWith(nowIso));
+                    if(startIdx === -1) startIdx = 0;
+                    for(let i=startIdx; i < startIdx+24 && i < hTimes.length; i++){
+                        const dateObj = new Date(hTimes[i]);
+                        const hourStr = dateObj.getHours() + ":00";
+                        const icon = getWeatherIcon(hCodes[i]);
+                        const temp = Math.round(hTemps[i]);
+                        hHtml += `<div class="hour-item"><div style="font-size:0.8rem; opacity:0.7;">${hourStr}</div><div style="font-size:1.5rem; margin:5px 0;">${icon}</div><div style="font-weight:bold;">${temp}°</div></div>`;
+                    }
+                    document.getElementById('hourly-list').innerHTML = hHtml;
+
+                    const dayTimes = d.daily.time; const dayCodes = d.daily.weathercode; const maxs = d.daily.temperature_2m_max; const mins = d.daily.temperature_2m_min;
+                    let wHtml = '';
+                    for(let i=0; i < dayTimes.length; i++){
+                        const dateObj = new Date(dayTimes[i]);
+                        const m = dateObj.getMonth()+1; const date = dateObj.getDate();
+                        const wDay = ['日','月','火','水','木','金','土'][dateObj.getDay()];
+                        const icon = getWeatherIcon(dayCodes[i]);
+                        wHtml += `<div class="week-row"><div class="w-day">${m}/${date}(${wDay})</div><div class="w-icon-sm">${icon}</div><div class="w-temp-range"><span style="color:#ff6b6b">${Math.round(maxs[i])}°</span> / <span style="color:#4dabf7">${Math.round(mins[i])}°</span></div></div>`;
+                    }
+                    document.getElementById('weekly-list').innerHTML = wHtml;
+                }catch(e){}
+            });
+        }
+        function toggleMode(){ document.body.classList.toggle('night-mode'); }
+
+        // === アラーム・タイマー・ToDo (前回と同じ) ===
         let alOn=false;
         function toggleAlarm(){
             let v=document.getElementById('alarm-in').value; if(!v)return;
             alOn=!alOn; let b=document.getElementById('alarm-btn'), s=document.getElementById('alarm-stat');
             b.innerText=alOn?"ON":"OFF"; b.classList.toggle('primary', alOn); s.innerText=alOn?v+" 待機中":"OFF";
         }
-        function checkAlarm(h,m){ if(alOn && document.getElementById('alarm-in').value===`${h}:${m}`){ beep(); alert("ALARM"); toggleAlarm(); }}
+        function checkAlarm(hStr,mStr){ if(alOn && document.getElementById('alarm-in').value===`${hStr}:${mStr}`){ beep(); alert("ALARM"); toggleAlarm(); }}
 
         let tmInt, tmTot=0;
         function startTimer(){
@@ -444,7 +421,7 @@
             });
         }
         function doneTd(id){ todos=todos.filter(x=>x.id!==id); saveTd(); }
-        function checkTodo(h,m){ let now=`${h}:${m}`; todos.forEach(x=>{ if(x.tm===now && !x.nt){ beep(); alert(x.t); x.nt=true; saveTd(); }}); }
+        function checkTodo(hStr,mStr){ let now=`${hStr}:${mStr}`; todos.forEach(x=>{ if(x.tm===now && !x.nt){ beep(); alert(x.t); x.nt=true; saveTd(); }}); }
 
         function renderCal(){
             let n=new Date(); let y=n.getFullYear(), m=n.getMonth();
