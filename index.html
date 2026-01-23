@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Standby Pro V8</title>
+    <title>Standby Pro V9</title>
     <style>
         :root {
-            /* ダークネイビー背景（乱視対策） */
             --bg-color: #0f172a; 
             --theme-color: #e2e8f0; 
             --line-color: #1e293b;
             --active-dot: #38bdf8;
             --cal-bg: rgba(255,255,255,0.03);
+            --item-bg: rgba(255,255,255,0.05);
         }
         
         body.night-mode {
@@ -22,6 +22,7 @@
             --line-color: #331111;
             --active-dot: #ff453a;
             --cal-bg: rgba(255, 69, 58, 0.1);
+            --item-bg: rgba(255, 69, 58, 0.08);
         }
 
         body, html {
@@ -55,11 +56,11 @@
             box-sizing: border-box; padding: 5px;
         }
 
-        /* === 左側 (時計など) === */
+        /* === 左側 === */
         .clock-time { font-size: 11vw; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -2px; white-space: nowrap; }
         .clock-date { font-size: 3.5vw; margin-top: 5px; opacity: 0.8; }
         
-        .title-label { font-size: 0.9rem; opacity: 0.6; margin-bottom: 15px; letter-spacing: 2px; text-transform: uppercase; }
+        .title-label { font-size: 0.9rem; opacity: 0.6; margin-bottom: 10px; letter-spacing: 2px; text-transform: uppercase; }
         .input-group { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; }
         .num-input {
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--theme-color);
@@ -82,42 +83,21 @@
         .dot { width: 6px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 50%; }
         .dot.active { background: var(--active-dot); transform: scale(1.5); }
 
-        /* === 右側 (カレンダー統合版) === */
+        /* === 右側 === */
         
-        /* カレンダー・天気ヘッダーエリア */
-        .cal-header-row {
-            width: 92%; display: flex; justify-content: space-between; align-items: flex-end;
-            margin-bottom: 10px; padding-top: 10px;
-        }
+        /* カレンダー */
+        .cal-header-row { width: 92%; display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; padding-top: 10px; }
         .cal-date-info { text-align: left; }
         .cal-ym-big { font-size: 6vw; font-weight: bold; line-height: 1; }
         .cal-era-sub { font-size: 3vw; opacity: 0.7; margin-top: 2px; }
-        
         .cal-weather-info { text-align: right; display: flex; flex-direction: column; align-items: flex-end;}
         .w-icon-big { font-size: 8vw; line-height: 1; margin-bottom: -5px; }
         .w-detail { font-size: 3vw; opacity: 0.9; display: flex; gap: 5px; align-items: baseline;}
 
-        /* カレンダーグリッド（画面いっぱい） */
-        .cal-container {
-            flex: 1; width: 95%; 
-            display: flex; flex-direction: column;
-            margin-bottom: 10px;
-        }
-        .cal-grid {
-            flex: 1; display: grid; 
-            grid-template-columns: repeat(7, 1fr); 
-            grid-template-rows: auto repeat(6, 1fr); /* 曜日行 + 日付6行 */
-            gap: 4px;
-        }
-        .cal-cell {
-            display: flex; align-items: center; justify-content: center;
-            font-size: 3.5vw; border-radius: 6px; background: var(--cal-bg);
-            font-weight: 500;
-        }
-        .cal-head {
-            background: transparent; color: var(--active-dot); font-weight: bold; font-size: 3vw;
-            align-items: flex-end; padding-bottom: 5px;
-        }
+        .cal-container { flex: 1; width: 95%; display: flex; flex-direction: column; margin-bottom: 10px; }
+        .cal-grid { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: auto repeat(6, 1fr); gap: 4px; }
+        .cal-cell { display: flex; align-items: center; justify-content: center; font-size: 3.5vw; border-radius: 6px; background: var(--cal-bg); font-weight: 500; }
+        .cal-head { background: transparent; color: var(--active-dot); font-weight: bold; font-size: 3vw; align-items: flex-end; padding-bottom: 5px; }
         .today-cell { background: var(--active-dot); color: #000; font-weight: bold; border-radius: 8px; }
 
         /* ToDo */
@@ -125,10 +105,42 @@
         .todo-input-row { display: flex; gap: 5px; margin-bottom: 10px; }
         .todo-text { flex: 1; min-width: 0; padding: 10px; border-radius: 8px; border:none; background:rgba(255,255,255,0.1); color:var(--theme-color);}
         .todo-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
-        .todo-item { 
-            background: rgba(255,255,255,0.08); padding: 10px; border-radius: 6px; 
-            display: flex; align-items: center; gap: 8px; font-size: 0.9rem; 
+        .todo-item { background: var(--item-bg); padding: 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+
+        /* === 本格天気予報 === */
+        .full-weather-box {
+            width: 95%; height: 95%; display: flex; flex-direction: column; gap: 10px;
         }
+        /* 1時間ごとの天気 (横スクロール) */
+        .hourly-section {
+            height: 35%; width: 100%;
+            background: var(--item-bg); border-radius: 12px; padding: 10px; box-sizing: border-box;
+            display: flex; flex-direction: column;
+        }
+        .hourly-scroll {
+            display: flex; overflow-x: auto; gap: 15px; height: 100%; align-items: center;
+            -ms-overflow-style: none; scrollbar-width: none;
+        }
+        .hourly-scroll::-webkit-scrollbar { display: none; }
+        .hour-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-width: 50px; flex-shrink: 0;
+        }
+        
+        /* 週間天気 (縦リスト) */
+        .weekly-section {
+            flex: 1; width: 100%;
+            background: var(--item-bg); border-radius: 12px; padding: 10px; box-sizing: border-box;
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .week-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 5px; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .week-row:last-child { border-bottom: none; }
+        .w-day { width: 60px; font-weight: bold; }
+        .w-icon-sm { font-size: 1.5rem; }
+        .w-temp-range { opacity: 0.8; font-variant-numeric: tabular-nums;}
 
         #mode-btn {
             position: fixed; top: 15px; left: 15px; z-index: 100;
@@ -142,8 +154,8 @@
 <body>
 
     <div id="overlay">
-        <h3>Standby V8</h3>
-        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">カレンダー大型化 & 天気統合</p>
+        <h3>Standby V9</h3>
+        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">本格天気予報 & 自動更新</p>
         <button class="btn primary" onclick="start()">Start</button>
     </div>
 
@@ -152,7 +164,7 @@
     <div class="main-container">
         
         <div class="split-pane left-pane">
-            <div class="swipe-container" id="left-scroll" onscroll="syncNav()">
+            <div class="swipe-container" id="left-scroll" onscroll="syncNav('left')">
                 <div class="page-section">
                     <div class="clock-time" id="clock">00:00</div>
                     <div class="clock-date" id="date">--/--</div>
@@ -160,17 +172,15 @@
                 <div class="page-section">
                     <div class="title-label">NOISE</div>
                     <div class="sound-grid">
-                        <button class="btn sound-btn" id="btn-white" onclick="toggleNoise('white')">ホワイト<br><span style="font-size:0.7em">集中</span></button>
-                        <button class="btn sound-btn" id="btn-brown" onclick="toggleNoise('brown')">ブラウン<br><span style="font-size:0.7em">睡眠</span></button>
-                        <button class="btn sound-btn" id="btn-rain" onclick="toggleNoise('rain')">雨音<br><span style="font-size:0.7em">癒やし</span></button>
+                        <button class="btn sound-btn" id="btn-white" onclick="toggleNoise('white')">ホワイト</button>
+                        <button class="btn sound-btn" id="btn-brown" onclick="toggleNoise('brown')">ブラウン</button>
+                        <button class="btn sound-btn" id="btn-rain" onclick="toggleNoise('rain')">雨音</button>
                         <button class="btn sound-btn" onclick="stopNoise()">OFF</button>
                     </div>
                 </div>
                 <div class="page-section">
                     <div class="title-label">ALARM</div>
-                    <div class="input-group">
-                        <input type="time" id="alarm-in" class="num-input" style="width:auto;">
-                    </div>
+                    <div class="input-group"><input type="time" id="alarm-in" class="num-input" style="width:auto;"></div>
                     <button id="alarm-btn" class="btn" onclick="toggleAlarm()">OFF</button>
                     <div id="alarm-stat" style="margin-top:10px; font-size:0.9rem; opacity:0.7;">未設定</div>
                 </div>
@@ -178,10 +188,8 @@
                     <div class="title-label">TIMER</div>
                     <div id="timer-set" style="display:flex; flex-direction:column; align-items:center;">
                         <div class="input-group">
-                            <input type="number" id="t-min" class="num-input" placeholder="0" value="3">
-                            <span>分</span>
-                            <input type="number" id="t-sec" class="num-input" placeholder="0" value="00">
-                            <span>秒</span>
+                            <input type="number" id="t-min" class="num-input" value="3"><span>分</span>
+                            <input type="number" id="t-sec" class="num-input" value="00"><span>秒</span>
                         </div>
                         <button class="btn primary" onclick="startTimer()">Start</button>
                     </div>
@@ -192,36 +200,14 @@
                 </div>
             </div>
             <div class="nav-dots">
-                <div class="dot active" id="dot-0"></div> 
-                <div class="dot" id="dot-1"></div>
-                <div class="dot" id="dot-2"></div>
-                <div class="dot" id="dot-3"></div>
+                <div class="dot active" id="dot-left-0"></div><div class="dot" id="dot-left-1"></div>
+                <div class="dot" id="dot-left-2"></div><div class="dot" id="dot-left-3"></div>
             </div>
         </div>
 
         <div class="split-pane">
-            <div class="swipe-container">
+            <div class="swipe-container" id="right-scroll" onscroll="syncNav('right')">
                 
-                <div class="page-section">
-                    <div class="cal-header-row">
-                        <div class="cal-date-info">
-                            <div class="cal-ym-big" id="cal-ym">2026.1</div>
-                            <div class="cal-era-sub" id="cal-era">令和8年</div>
-                        </div>
-                        <div class="cal-weather-info" onclick="getW()">
-                            <div class="w-icon-big" id="w-icon">🤔</div>
-                            <div class="w-detail">
-                                <span id="w-tmp" style="font-weight:bold;">--°</span>
-                                <span id="w-desc">更新</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="cal-container">
-                        <div class="cal-grid" id="cal-grid"></div>
-                    </div>
-                </div>
-
                 <div class="page-section">
                     <div class="todo-box">
                         <div class="title-label" style="text-align:center; margin-top:10px;">ToDo</div>
@@ -234,6 +220,40 @@
                     </div>
                 </div>
 
+                <div class="page-section">
+                    <div class="cal-header-row">
+                        <div class="cal-date-info">
+                            <div class="cal-ym-big" id="cal-ym">2026.1</div>
+                            <div class="cal-era-sub" id="cal-era">令和8年</div>
+                        </div>
+                        <div class="cal-weather-info" id="cal-w-info">
+                            <div class="w-icon-big" id="w-icon">🤔</div>
+                            <div class="w-detail"><span id="w-tmp" style="font-weight:bold;">--°</span></div>
+                        </div>
+                    </div>
+                    <div class="cal-container"><div class="cal-grid" id="cal-grid"></div></div>
+                </div>
+
+                <div class="page-section">
+                    <div class="full-weather-box">
+                        <div class="title-label" style="margin-bottom:0; font-size:0.8rem;">HOURLY</div>
+                        <div class="hourly-section">
+                            <div class="hourly-scroll" id="hourly-list">
+                                <div class="hour-item">Loading...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="title-label" style="margin:5px 0 0 0; font-size:0.8rem;">WEEKLY</div>
+                        <div class="weekly-section" id="weekly-list">
+                            </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="nav-dots">
+                <div class="dot active" id="dot-right-0"></div>
+                <div class="dot" id="dot-right-1"></div>
+                <div class="dot" id="dot-right-2"></div>
             </div>
         </div>
     </div>
@@ -243,36 +263,26 @@
         let noiseSrc = null;
 
         function initAudio() { if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); }
-
-        // ノイズ生成
         function toggleNoise(type) {
             initAudio(); if (ac.state === 'suspended') ac.resume(); stopNoise();
             document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active-sound'));
             document.getElementById('btn-' + type).classList.add('active-sound');
-            
             const bufferSize = ac.sampleRate * 2;
             const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
             const data = buffer.getChannelData(0);
             let lastOut = 0;
-
             for (let i = 0; i < bufferSize; i++) {
                 const white = Math.random() * 2 - 1;
-                if(type === 'white') { data[i] = white * 0.5; }
+                if(type === 'white') data[i] = white * 0.5;
                 else { data[i] = (lastOut + (0.02 * white)) / 1.02; lastOut = data[i]; data[i] *= 3.5; }
             }
             noiseSrc = ac.createBufferSource(); noiseSrc.buffer = buffer; noiseSrc.loop = true;
             const gain = ac.createGain(); gain.gain.value = 0.5;
-            if(type === 'rain') {
-                const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 800;
-                noiseSrc.connect(f); f.connect(gain);
-            } else { noiseSrc.connect(gain); }
+            if(type === 'rain') { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 800; noiseSrc.connect(f); f.connect(gain); }
+            else { noiseSrc.connect(gain); }
             gain.connect(ac.destination); noiseSrc.start();
         }
-
-        function stopNoise() {
-            if (noiseSrc) { noiseSrc.stop(); noiseSrc = null; }
-            document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active-sound'));
-        }
+        function stopNoise() { if (noiseSrc) { noiseSrc.stop(); noiseSrc = null; } document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active-sound')); }
 
         async function start() {
             document.getElementById('overlay').style.display = 'none';
@@ -281,37 +291,95 @@
             if(m) document.getElementById('t-min').value=m;
             if(s) document.getElementById('t-sec').value=s;
             try{if('wakeLock'in navigator)await navigator.wakeLock.request('screen');}catch(e){}
-            getW(); renderCal();
+            
+            // 天気取得開始 & 自動更新セット (30分ごと)
+            fetchAllWeather();
+            setInterval(fetchAllWeather, 30 * 60 * 1000); 
+            renderCal();
         }
 
-        // 天気取得 & 絵文字マッピング
-        function getW(){
-            document.getElementById('w-desc').innerText = "…";
+        // 天気アイコン判定
+        function getWeatherIcon(code) {
+            if(code===0) return "☀️";
+            if(code<=3) return "🌤️";
+            if(code<=48) return "🌫️";
+            if(code<=67) return "☔";
+            if(code<=77) return "❄️";
+            if(code<=82) return "☔";
+            if(code<=99) return "⛈️";
+            return "☁️";
+        }
+
+        // 全天気データ取得 (現在・時間・週間)
+        function fetchAllWeather(){
             navigator.geolocation.getCurrentPosition(async p=>{
                 try{
-                    let r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&timezone=auto`);
-                    let d=await r.json();
-                    let t = Math.round(d.current_weather.temperature);
-                    let c = d.current_weather.weathercode;
-                    document.getElementById('w-tmp').innerText = t + "°";
+                    // URL構築: current, hourly, daily をまとめて取得
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
+                    const res = await fetch(url);
+                    const d = await res.json();
                     
-                    // WMOコードを絵文字と文字に変換
-                    let icon="☁️", txt="曇";
-                    if(c===0){ icon="☀️"; txt="快晴"; }
-                    else if(c<=3){ icon="🌤️"; txt="晴れ"; }
-                    else if(c<=48){ icon="🌫️"; txt="霧"; }
-                    else if(c<=67){ icon="☔"; txt="雨"; }
-                    else if(c<=77){ icon="❄️"; txt="雪"; }
-                    else if(c<=82){ icon="☔"; txt="大雨"; }
-                    else if(c<=99){ icon="⛈️"; txt="雷雨"; }
+                    // 1. カレンダーのミニ天気更新
+                    const cur = d.current_weather;
+                    document.getElementById('w-tmp').innerText = Math.round(cur.temperature) + "°";
+                    document.getElementById('w-icon').innerText = getWeatherIcon(cur.weathercode);
+
+                    // 2. 時間ごとの天気 (Hourly)
+                    const hTimes = d.hourly.time;
+                    const hTemps = d.hourly.temperature_2m;
+                    const hCodes = d.hourly.weathercode;
+                    let hHtml = '';
                     
-                    document.getElementById('w-icon').innerText = icon;
-                    document.getElementById('w-desc').innerText = txt;
-                }catch(e){
-                    document.getElementById('w-icon').innerText = "⚠️";
-                }
-            }, ()=>{
-                document.getElementById('w-icon').innerText = "📍×";
+                    // 現在時刻に近いインデックスを探す
+                    const nowIso = new Date().toISOString().slice(0,13); // "2026-01-24T12" まで一致を見る
+                    let startIdx = hTimes.findIndex(t => t.startsWith(nowIso));
+                    if(startIdx === -1) startIdx = 0;
+
+                    // 向こう24時間を表示
+                    for(let i=startIdx; i < startIdx+24 && i < hTimes.length; i++){
+                        const dateObj = new Date(hTimes[i]);
+                        const hourStr = dateObj.getHours() + ":00";
+                        const icon = getWeatherIcon(hCodes[i]);
+                        const temp = Math.round(hTemps[i]);
+                        hHtml += `
+                            <div class="hour-item">
+                                <div style="font-size:0.8rem; opacity:0.7;">${hourStr}</div>
+                                <div style="font-size:1.5rem; margin:5px 0;">${icon}</div>
+                                <div style="font-weight:bold;">${temp}°</div>
+                            </div>
+                        `;
+                    }
+                    document.getElementById('hourly-list').innerHTML = hHtml;
+
+                    // 3. 週間天気 (Weekly)
+                    const dayTimes = d.daily.time;
+                    const dayCodes = d.daily.weathercode;
+                    const maxs = d.daily.temperature_2m_max;
+                    const mins = d.daily.temperature_2m_min;
+                    let wHtml = '';
+
+                    // 1週間分 (当日含む)
+                    for(let i=0; i < dayTimes.length; i++){
+                        const dateObj = new Date(dayTimes[i]);
+                        const m = dateObj.getMonth()+1;
+                        const date = dateObj.getDate();
+                        const wDay = ['日','月','火','水','木','金','土'][dateObj.getDay()];
+                        const icon = getWeatherIcon(dayCodes[i]);
+                        
+                        wHtml += `
+                            <div class="week-row">
+                                <div class="w-day">${m}/${date}(${wDay})</div>
+                                <div class="w-icon-sm">${icon}</div>
+                                <div class="w-temp-range">
+                                    <span style="color:#ff6b6b">${Math.round(maxs[i])}°</span> / 
+                                    <span style="color:#4dabf7">${Math.round(mins[i])}°</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    document.getElementById('weekly-list').innerHTML = wHtml;
+
+                }catch(e){ console.log(e); }
             });
         }
 
@@ -326,9 +394,14 @@
             if(s==='00') { checkAlarm(h,m); checkTodo(h,m); }
         },1000);
 
-        function syncNav(){
-            let c=document.getElementById('left-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth);
-            [0,1,2,3].forEach(i=>document.getElementById('dot-'+i).classList.toggle('active', i===idx));
+        function syncNav(side){
+            let c=document.getElementById(side+'-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth);
+            // 左は4つ(0-3), 右は3つ(0-2)
+            let max = side==='left' ? 4 : 3;
+            for(let i=0; i<max; i++){
+                let d = document.getElementById(`dot-${side}-${i}`);
+                if(d) d.classList.toggle('active', i===idx);
+            }
         }
 
         function beep(){
@@ -340,7 +413,6 @@
             o.start(); o.stop(ac.currentTime+0.5);
         }
 
-        // その他機能
         let alOn=false;
         function toggleAlarm(){
             let v=document.getElementById('alarm-in').value; if(!v)return;
@@ -374,36 +446,18 @@
         function doneTd(id){ todos=todos.filter(x=>x.id!==id); saveTd(); }
         function checkTodo(h,m){ let now=`${h}:${m}`; todos.forEach(x=>{ if(x.tm===now && !x.nt){ beep(); alert(x.t); x.nt=true; saveTd(); }}); }
 
-        // カレンダー描画（令和対応・大型化）
         function renderCal(){
-            let n=new Date();
-            let y=n.getFullYear(), m=n.getMonth();
-            
-            // 和暦取得
+            let n=new Date(); let y=n.getFullYear(), m=n.getMonth();
             try {
                 let era = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {year:'numeric'}).format(n);
-                // "2026年" ではなく "令和8年" を取得できる（環境によるがIntl対応ならOK）
-                if(!era.match(/年/)) era = y + "年"; // フォールバック
-                else era = era.split('年')[0] + '年'; // "令和8年1月"から年だけ取る簡易処理
+                if(!era.match(/年/)) era = y + "年"; else era = era.split('年')[0] + '年';
                 document.getElementById('cal-era').innerText = era;
             } catch(e) { document.getElementById('cal-era').innerText = y+"年"; }
-
             document.getElementById('cal-ym').innerText = `${y}.${m+1}`;
-            
             let html='', fd=new Date(y,m,1).getDay(), ld=new Date(y,m+1,0).getDate();
-            
-            // 曜日ヘッダー
             ['日','月','火','水','木','金','土'].forEach(d=>html+=`<div class="cal-cell cal-head">${d}</div>`);
-            
-            // 空白セル
             for(let i=0;i<fd;i++) html+='<div class="cal-cell"></div>';
-            
-            // 日付セル
-            for(let i=1;i<=ld;i++){
-                let cl='cal-cell';
-                if(i===n.getDate()) cl+=' today-cell';
-                html+=`<div class="${cl}">${i}</div>`;
-            }
+            for(let i=1;i<=ld;i++){ let cl='cal-cell'; if(i===n.getDate()) cl+=' today-cell'; html+=`<div class="${cl}">${i}</div>`; }
             document.getElementById('cal-grid').innerHTML=html;
         }
     </script>
