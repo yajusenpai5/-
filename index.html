@@ -5,22 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Standby Pro V6</title>
+    <title>Standby Pro V8</title>
     <style>
         :root {
-            /* ダークネイビー背景（乱視対策・目に優しい濃紺） */
+            /* ダークネイビー背景（乱視対策） */
             --bg-color: #0f172a; 
-            --theme-color: #e2e8f0; /* 少しグレーがかった白（眩しさ軽減） */
+            --theme-color: #e2e8f0; 
             --line-color: #1e293b;
             --active-dot: #38bdf8;
+            --cal-bg: rgba(255,255,255,0.03);
         }
         
-        /* 夜間モード（赤色） */
         body.night-mode {
-            --bg-color: #1a0505; /* 真っ黒ではなく、ごく暗い赤茶 */
+            --bg-color: #1a0505;
             --theme-color: #ff453a;
             --line-color: #331111;
             --active-dot: #ff453a;
+            --cal-bg: rgba(255, 69, 58, 0.1);
         }
 
         body, html {
@@ -33,7 +34,6 @@
             transition: background-color 0.5s, color 0.5s;
         }
 
-        /* レイアウト：50%分割 */
         .main-container { display: flex; width: 100vw; height: 100%; }
         .split-pane { flex: 1; width: 50%; min-width: 0; height: 100%; display: flex; flex-direction: column; position: relative; }
         .left-pane { border-right: 2px solid var(--line-color); }
@@ -55,39 +55,71 @@
             box-sizing: border-box; padding: 5px;
         }
 
-        /* === 左側 === */
-        /* 時計 */
+        /* === 左側 (時計など) === */
         .clock-time { font-size: 11vw; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -2px; white-space: nowrap; }
         .clock-date { font-size: 3.5vw; margin-top: 5px; opacity: 0.8; }
-        .battery-info { font-size: 3vw; margin-top: 5px; opacity: 0.6; display: flex; align-items: center; gap: 5px; }
-
-        /* サウンド・アラーム・タイマー共通UI */
-        .title-label { font-size: 1rem; opacity: 0.6; margin-bottom: 15px; letter-spacing: 2px; text-transform: uppercase; }
+        
+        .title-label { font-size: 0.9rem; opacity: 0.6; margin-bottom: 15px; letter-spacing: 2px; text-transform: uppercase; }
         .input-group { display: flex; gap: 5px; margin-bottom: 15px; justify-content: center; }
         .num-input {
             background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--theme-color);
-            border-radius: 8px; padding: 8px; text-align: center; font-size: 1.5rem; width: 60px;
+            border-radius: 8px; padding: 5px; text-align: center; font-size: 1.5rem; width: 60px;
         }
         .btn {
-            padding: 10px 25px; font-size: 1rem; border-radius: 30px; border: none;
+            padding: 10px 20px; font-size: 1rem; border-radius: 30px; border: none;
             background: rgba(255,255,255,0.15); color: var(--theme-color); cursor: pointer; white-space: nowrap;
         }
         .btn.primary { background: var(--theme-color); color: var(--bg-color); font-weight: bold; }
         .btn.active-sound { background: var(--active-dot); color: #000; font-weight: bold; box-shadow: 0 0 10px var(--active-dot); }
 
-        /* サウンドボタン配置 */
-        .sound-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 80%; }
-        .sound-btn { padding: 15px; font-size: 0.9rem; border-radius: 12px; }
+        .sound-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 85%; }
+        .sound-btn { padding: 12px; font-size: 0.9rem; border-radius: 12px; }
 
-        /* ナビゲーション */
         .nav-dots {
-            height: 30px; display: flex; justify-content: center; gap: 10px; align-items: center;
+            height: 25px; display: flex; justify-content: center; gap: 8px; align-items: center;
             border-top: 1px solid var(--line-color); width: 100%; background: var(--bg-color);
         }
         .dot { width: 6px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 50%; }
         .dot.active { background: var(--active-dot); transform: scale(1.5); }
 
-        /* === 右側 === */
+        /* === 右側 (カレンダー統合版) === */
+        
+        /* カレンダー・天気ヘッダーエリア */
+        .cal-header-row {
+            width: 92%; display: flex; justify-content: space-between; align-items: flex-end;
+            margin-bottom: 10px; padding-top: 10px;
+        }
+        .cal-date-info { text-align: left; }
+        .cal-ym-big { font-size: 6vw; font-weight: bold; line-height: 1; }
+        .cal-era-sub { font-size: 3vw; opacity: 0.7; margin-top: 2px; }
+        
+        .cal-weather-info { text-align: right; display: flex; flex-direction: column; align-items: flex-end;}
+        .w-icon-big { font-size: 8vw; line-height: 1; margin-bottom: -5px; }
+        .w-detail { font-size: 3vw; opacity: 0.9; display: flex; gap: 5px; align-items: baseline;}
+
+        /* カレンダーグリッド（画面いっぱい） */
+        .cal-container {
+            flex: 1; width: 95%; 
+            display: flex; flex-direction: column;
+            margin-bottom: 10px;
+        }
+        .cal-grid {
+            flex: 1; display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            grid-template-rows: auto repeat(6, 1fr); /* 曜日行 + 日付6行 */
+            gap: 4px;
+        }
+        .cal-cell {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3.5vw; border-radius: 6px; background: var(--cal-bg);
+            font-weight: 500;
+        }
+        .cal-head {
+            background: transparent; color: var(--active-dot); font-weight: bold; font-size: 3vw;
+            align-items: flex-end; padding-bottom: 5px;
+        }
+        .today-cell { background: var(--active-dot); color: #000; font-weight: bold; border-radius: 8px; }
+
         /* ToDo */
         .todo-box { width: 95%; height: 90%; display: flex; flex-direction: column; }
         .todo-input-row { display: flex; gap: 5px; margin-bottom: 10px; }
@@ -98,28 +130,20 @@
             display: flex; align-items: center; gap: 8px; font-size: 0.9rem; 
         }
 
-        /* 天気・カレンダー */
-        .weather-val { font-size: 12vw; font-weight: bold; line-height: 1; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); width: 100%; text-align: center; gap: 2px; font-size: 0.9rem;}
-        .cal-head { font-weight: bold; font-size: 0.7rem; color: var(--active-dot); }
-        .today { background: var(--active-dot); color: #000; border-radius: 4px; font-weight: bold;}
-
-        /* モード切替ボタン */
         #mode-btn {
             position: fixed; top: 15px; left: 15px; z-index: 100;
             width: 40px; height: 40px; border-radius: 50%;
             background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
             color: var(--theme-color); display: flex; justify-content: center; align-items: center;
         }
-
         #overlay { position: fixed; inset: 0; background: #000; z-index: 999; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h3>Standby V6</h3>
-        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">目に優しいブルー背景 & 環境音搭載</p>
+        <h3>Standby V8</h3>
+        <p style="font-size:0.8rem; color:#aaa; margin-bottom:20px;">カレンダー大型化 & 天気統合</p>
         <button class="btn primary" onclick="start()">Start</button>
     </div>
 
@@ -129,24 +153,19 @@
         
         <div class="split-pane left-pane">
             <div class="swipe-container" id="left-scroll" onscroll="syncNav()">
-                
                 <div class="page-section">
                     <div class="clock-time" id="clock">00:00</div>
                     <div class="clock-date" id="date">--/--</div>
-                    <div class="battery-info" id="battery-disp"></div>
                 </div>
-
                 <div class="page-section">
-                    <div class="title-label">NOISE GENERATOR</div>
+                    <div class="title-label">NOISE</div>
                     <div class="sound-grid">
-                        <button class="btn sound-btn" id="btn-white" onclick="toggleNoise('white')">ホワイト<br><span style="font-size:0.7em">集中・遮音</span></button>
-                        <button class="btn sound-btn" id="btn-brown" onclick="toggleNoise('brown')">ブラウン<br><span style="font-size:0.7em">睡眠・振動消し</span></button>
-                        <button class="btn sound-btn" id="btn-rain" onclick="toggleNoise('rain')">雨音<br><span style="font-size:0.7em">リラックス</span></button>
+                        <button class="btn sound-btn" id="btn-white" onclick="toggleNoise('white')">ホワイト<br><span style="font-size:0.7em">集中</span></button>
+                        <button class="btn sound-btn" id="btn-brown" onclick="toggleNoise('brown')">ブラウン<br><span style="font-size:0.7em">睡眠</span></button>
+                        <button class="btn sound-btn" id="btn-rain" onclick="toggleNoise('rain')">雨音<br><span style="font-size:0.7em">癒やし</span></button>
                         <button class="btn sound-btn" onclick="stopNoise()">OFF</button>
                     </div>
-                    <p style="font-size:0.7rem; opacity:0.6; margin-top:10px;">※音量注意</p>
                 </div>
-
                 <div class="page-section">
                     <div class="title-label">ALARM</div>
                     <div class="input-group">
@@ -155,7 +174,6 @@
                     <button id="alarm-btn" class="btn" onclick="toggleAlarm()">OFF</button>
                     <div id="alarm-stat" style="margin-top:10px; font-size:0.9rem; opacity:0.7;">未設定</div>
                 </div>
-
                 <div class="page-section">
                     <div class="title-label">TIMER</div>
                     <div id="timer-set" style="display:flex; flex-direction:column; align-items:center;">
@@ -174,11 +192,36 @@
                 </div>
             </div>
             <div class="nav-dots">
-                <div class="dot active" id="dot-0"></div> <div class="dot" id="dot-1"></div> <div class="dot" id="dot-2"></div> <div class="dot" id="dot-3"></div> </div>
+                <div class="dot active" id="dot-0"></div> 
+                <div class="dot" id="dot-1"></div>
+                <div class="dot" id="dot-2"></div>
+                <div class="dot" id="dot-3"></div>
+            </div>
         </div>
 
         <div class="split-pane">
             <div class="swipe-container">
+                
+                <div class="page-section">
+                    <div class="cal-header-row">
+                        <div class="cal-date-info">
+                            <div class="cal-ym-big" id="cal-ym">2026.1</div>
+                            <div class="cal-era-sub" id="cal-era">令和8年</div>
+                        </div>
+                        <div class="cal-weather-info" onclick="getW()">
+                            <div class="w-icon-big" id="w-icon">🤔</div>
+                            <div class="w-detail">
+                                <span id="w-tmp" style="font-weight:bold;">--°</span>
+                                <span id="w-desc">更新</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="cal-container">
+                        <div class="cal-grid" id="cal-grid"></div>
+                    </div>
+                </div>
+
                 <div class="page-section">
                     <div class="todo-box">
                         <div class="title-label" style="text-align:center; margin-top:10px;">ToDo</div>
@@ -190,16 +233,7 @@
                         <div class="todo-list" id="list"></div>
                     </div>
                 </div>
-                <div class="page-section">
-                    <div class="title-label" id="cal-m">CALENDAR</div>
-                    <div class="cal-grid" id="cal"></div>
-                </div>
-                <div class="page-section">
-                    <div class="title-label">WEATHER</div>
-                    <div class="weather-val" id="w-tmp">--°</div>
-                    <div id="w-desc" style="opacity:0.8;">--</div>
-                    <button class="btn" onclick="getW()" style="margin-top:10px; font-size:0.8rem;">更新</button>
-                </div>
+
             </div>
         </div>
     </div>
@@ -208,107 +242,41 @@
         let ac; // AudioContext
         let noiseSrc = null;
 
-        function initAudio() {
-            if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        function initAudio() { if(!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); }
 
-        // === ノイズ生成ロジック ===
-        function createNoiseBuffer(type) {
-            const bufferSize = ac.sampleRate * 2; // 2秒分のバッファ
-            const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
-            const data = buffer.getChannelData(0);
-
-            for (let i = 0; i < bufferSize; i++) {
-                if (type === 'white') {
-                    data[i] = Math.random() * 2 - 1;
-                } else if (type === 'brown') {
-                    // 簡易ブラウンノイズ生成
-                    const white = Math.random() * 2 - 1;
-                    data[i] = (lastOut + (0.02 * white)) / 1.02;
-                    lastOut = data[i];
-                    data[i] *= 3.5; // 音量補正
-                }
-            }
-            return buffer;
-        }
-        let lastOut = 0;
-
+        // ノイズ生成
         function toggleNoise(type) {
-            initAudio();
-            if (ac.state === 'suspended') ac.resume();
-            stopNoise(); // 前の音を止める
-
-            // UI更新
+            initAudio(); if (ac.state === 'suspended') ac.resume(); stopNoise();
             document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active-sound'));
             document.getElementById('btn-' + type).classList.add('active-sound');
-
-            // ノイズ生成
+            
             const bufferSize = ac.sampleRate * 2;
             const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
             const data = buffer.getChannelData(0);
-            
-            // ノイズの計算
             let lastOut = 0;
+
             for (let i = 0; i < bufferSize; i++) {
                 const white = Math.random() * 2 - 1;
-                if(type === 'white') {
-                    data[i] = white * 0.5;
-                } else if(type === 'brown' || type === 'rain') {
-                    // ブラウンノイズ（低音成分）
-                    data[i] = (lastOut + (0.02 * white)) / 1.02;
-                    lastOut = data[i];
-                    data[i] *= 3.5; 
-                }
+                if(type === 'white') { data[i] = white * 0.5; }
+                else { data[i] = (lastOut + (0.02 * white)) / 1.02; lastOut = data[i]; data[i] *= 3.5; }
             }
-
-            noiseSrc = ac.createBufferSource();
-            noiseSrc.buffer = buffer;
-            noiseSrc.loop = true;
-
-            // フィルターで雨音っぽくする
-            const gainNode = ac.createGain();
-            gainNode.gain.value = 0.5; // マスターボリューム
-
+            noiseSrc = ac.createBufferSource(); noiseSrc.buffer = buffer; noiseSrc.loop = true;
+            const gain = ac.createGain(); gain.gain.value = 0.5;
             if(type === 'rain') {
-                // 雨音用にフィルターを通す
-                const filter = ac.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = 800;
-                noiseSrc.connect(filter);
-                filter.connect(gainNode);
-            } else {
-                noiseSrc.connect(gainNode);
-            }
-
-            gainNode.connect(ac.destination);
-            noiseSrc.start();
+                const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 800;
+                noiseSrc.connect(f); f.connect(gain);
+            } else { noiseSrc.connect(gain); }
+            gain.connect(ac.destination); noiseSrc.start();
         }
 
         function stopNoise() {
-            if (noiseSrc) {
-                noiseSrc.stop();
-                noiseSrc = null;
-            }
+            if (noiseSrc) { noiseSrc.stop(); noiseSrc = null; }
             document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active-sound'));
         }
 
-        // === 通常機能 ===
         async function start() {
             document.getElementById('overlay').style.display = 'none';
             initAudio();
-            // バッテリー取得（対応ブラウザのみ）
-            try {
-                if(navigator.getBattery) {
-                    const batt = await navigator.getBattery();
-                    updateBatt(batt);
-                    batt.addEventListener('levelchange', ()=>updateBatt(batt));
-                    batt.addEventListener('chargingchange', ()=>updateBatt(batt));
-                } else {
-                    document.getElementById('battery-disp').innerHTML = ""; // 非対応なら非表示
-                }
-            } catch(e){}
-
-            // タイマー復元など
             let m=localStorage.getItem('tm_m'), s=localStorage.getItem('tm_s');
             if(m) document.getElementById('t-min').value=m;
             if(s) document.getElementById('t-sec').value=s;
@@ -316,17 +284,39 @@
             getW(); renderCal();
         }
 
-        function updateBatt(batt) {
-            const level = Math.floor(batt.level * 100);
-            const status = batt.charging ? "⚡" : "";
-            // iPhoneではAPI制限で動かないことが多いが、Mac/Android/Chromeでは動く
-            document.getElementById('battery-disp').innerText = `🔋 ${level}% ${status}`;
+        // 天気取得 & 絵文字マッピング
+        function getW(){
+            document.getElementById('w-desc').innerText = "…";
+            navigator.geolocation.getCurrentPosition(async p=>{
+                try{
+                    let r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&timezone=auto`);
+                    let d=await r.json();
+                    let t = Math.round(d.current_weather.temperature);
+                    let c = d.current_weather.weathercode;
+                    document.getElementById('w-tmp').innerText = t + "°";
+                    
+                    // WMOコードを絵文字と文字に変換
+                    let icon="☁️", txt="曇";
+                    if(c===0){ icon="☀️"; txt="快晴"; }
+                    else if(c<=3){ icon="🌤️"; txt="晴れ"; }
+                    else if(c<=48){ icon="🌫️"; txt="霧"; }
+                    else if(c<=67){ icon="☔"; txt="雨"; }
+                    else if(c<=77){ icon="❄️"; txt="雪"; }
+                    else if(c<=82){ icon="☔"; txt="大雨"; }
+                    else if(c<=99){ icon="⛈️"; txt="雷雨"; }
+                    
+                    document.getElementById('w-icon').innerText = icon;
+                    document.getElementById('w-desc').innerText = txt;
+                }catch(e){
+                    document.getElementById('w-icon').innerText = "⚠️";
+                }
+            }, ()=>{
+                document.getElementById('w-icon').innerText = "📍×";
+            });
         }
 
-        // モード切替（夜間モード）
-        function toggleMode(){
-            document.body.classList.toggle('night-mode');
-        }
+        // モード切替
+        function toggleMode(){ document.body.classList.toggle('night-mode'); }
 
         // 時計
         setInterval(()=>{
@@ -336,14 +326,11 @@
             if(s==='00') { checkAlarm(h,m); checkTodo(h,m); }
         },1000);
 
-        // ナビ連動
         function syncNav(){
-            let c=document.getElementById('left-scroll');
-            let idx=Math.round(c.scrollLeft / c.clientWidth);
+            let c=document.getElementById('left-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth);
             [0,1,2,3].forEach(i=>document.getElementById('dot-'+i).classList.toggle('active', i===idx));
         }
 
-        // ビープ音
         function beep(){
             initAudio(); if(ac.state==='suspended') ac.resume();
             let o=ac.createOscillator(), g=ac.createGain();
@@ -353,14 +340,12 @@
             o.start(); o.stop(ac.currentTime+0.5);
         }
 
-        // その他（アラーム・タイマー・ToDo・天気）は前Verと同じロジック
+        // その他機能
         let alOn=false;
         function toggleAlarm(){
             let v=document.getElementById('alarm-in').value; if(!v)return;
-            alOn=!alOn;
-            let b=document.getElementById('alarm-btn'), s=document.getElementById('alarm-stat');
-            b.innerText=alOn?"ON":"OFF"; b.classList.toggle('primary', alOn);
-            s.innerText=alOn?v+" 待機中":"OFF";
+            alOn=!alOn; let b=document.getElementById('alarm-btn'), s=document.getElementById('alarm-stat');
+            b.innerText=alOn?"ON":"OFF"; b.classList.toggle('primary', alOn); s.innerText=alOn?v+" 待機中":"OFF";
         }
         function checkAlarm(h,m){ if(alOn && document.getElementById('alarm-in').value===`${h}:${m}`){ beep(); alert("ALARM"); toggleAlarm(); }}
 
@@ -369,22 +354,14 @@
             let m=parseInt(document.getElementById('t-min').value)||0, s=parseInt(document.getElementById('t-sec').value)||0;
             if(m===0&&s===0)return;
             localStorage.setItem('tm_m',m); localStorage.setItem('tm_s',s);
-            tmTot=m*60+s;
-            document.getElementById('timer-set').style.display='none'; document.getElementById('timer-run').style.display='flex';
-            updTm();
+            tmTot=m*60+s; document.getElementById('timer-set').style.display='none'; document.getElementById('timer-run').style.display='flex'; updTm();
             tmInt=setInterval(()=>{ if(tmTot<=0){ resetTimer(); beep(); alert("Time Up"); } else{ tmTot--; updTm(); } },1000);
         }
         function resetTimer(){ clearInterval(tmInt); document.getElementById('timer-set').style.display='flex'; document.getElementById('timer-run').style.display='none'; }
-        function updTm(){
-            let m=Math.floor(tmTot/60).toString().padStart(2,'0'), s=(tmTot%60).toString().padStart(2,'0');
-            document.getElementById('t-disp').innerText=`${m}:${s}`;
-        }
+        function updTm(){ let m=Math.floor(tmTot/60).toString().padStart(2,'0'), s=(tmTot%60).toString().padStart(2,'0'); document.getElementById('t-disp').innerText=`${m}:${s}`; }
 
         let todos=JSON.parse(localStorage.getItem('tds')||'[]'); renTd();
-        function addTodo(){
-            let t=document.getElementById('todo-txt').value, tm=document.getElementById('todo-tm').value; if(!t)return;
-            todos.push({id:Date.now(), t, tm, dn:false, nt:false}); saveTd(); document.getElementById('todo-txt').value='';
-        }
+        function addTodo(){ let t=document.getElementById('todo-txt').value, tm=document.getElementById('todo-tm').value; if(!t)return; todos.push({id:Date.now(), t, tm, dn:false, nt:false}); saveTd(); document.getElementById('todo-txt').value=''; }
         function saveTd(){ localStorage.setItem('tds', JSON.stringify(todos)); renTd(); }
         function renTd(){
             let l=document.getElementById('list'); l.innerHTML='';
@@ -397,21 +374,37 @@
         function doneTd(id){ todos=todos.filter(x=>x.id!==id); saveTd(); }
         function checkTodo(h,m){ let now=`${h}:${m}`; todos.forEach(x=>{ if(x.tm===now && !x.nt){ beep(); alert(x.t); x.nt=true; saveTd(); }}); }
 
-        function getW(){
-            navigator.geolocation.getCurrentPosition(async p=>{ try{
-                let r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&timezone=auto`);
-                let d=await r.json(); document.getElementById('w-tmp').innerText=Math.round(d.current_weather.temperature)+"°";
-                let c=d.current_weather.weathercode, w="晴"; if(c>3)w="曇"; if(c>50)w="雨"; if(c>70)w="雪";
-                document.getElementById('w-desc').innerText=w;
-            }catch{}});
-        }
+        // カレンダー描画（令和対応・大型化）
         function renderCal(){
-            let n=new Date(); document.getElementById('cal-m').innerText=`${n.getFullYear()}.${n.getMonth()+1}`;
-            let html='', fd=new Date(n.getFullYear(),n.getMonth(),1).getDay(), ld=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();
-            ['日','月','火','水','木','金','土'].forEach(d=>html+=`<div class="cal-head">${d}</div>`);
-            for(let i=0;i<fd;i++)html+='<div></div>';
-            for(let i=1;i<=ld;i++){ let cl=i===n.getDate()?'today':''; html+=`<div class="${cl}">${i}</div>`; }
-            document.getElementById('cal').innerHTML=html;
+            let n=new Date();
+            let y=n.getFullYear(), m=n.getMonth();
+            
+            // 和暦取得
+            try {
+                let era = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {year:'numeric'}).format(n);
+                // "2026年" ではなく "令和8年" を取得できる（環境によるがIntl対応ならOK）
+                if(!era.match(/年/)) era = y + "年"; // フォールバック
+                else era = era.split('年')[0] + '年'; // "令和8年1月"から年だけ取る簡易処理
+                document.getElementById('cal-era').innerText = era;
+            } catch(e) { document.getElementById('cal-era').innerText = y+"年"; }
+
+            document.getElementById('cal-ym').innerText = `${y}.${m+1}`;
+            
+            let html='', fd=new Date(y,m,1).getDay(), ld=new Date(y,m+1,0).getDate();
+            
+            // 曜日ヘッダー
+            ['日','月','火','水','木','金','土'].forEach(d=>html+=`<div class="cal-cell cal-head">${d}</div>`);
+            
+            // 空白セル
+            for(let i=0;i<fd;i++) html+='<div class="cal-cell"></div>';
+            
+            // 日付セル
+            for(let i=1;i<=ld;i++){
+                let cl='cal-cell';
+                if(i===n.getDate()) cl+=' today-cell';
+                html+=`<div class="${cl}">${i}</div>`;
+            }
+            document.getElementById('cal-grid').innerHTML=html;
         }
     </script>
 </body>
