@@ -241,117 +241,129 @@
     </div>
 
     <script>
-        // === オーディオエンジン ===
+       // === オーディオエンジン ===
         let ac; let currentOsc = null; let alarmTimeout = null;
-        function initAudio() { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); }
+        function initAudio() { 
+            if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); 
+            if (ac.state === 'suspended') ac.resume(); 
+        }
+
         function playBeepLoop() {
             initAudio(); if(currentOsc) stopAlarmSound();
             const t0 = ac.currentTime; const osc = ac.createOscillator(); const gain = ac.createGain();
             osc.type = 'square'; osc.frequency.setValueAtTime(880, t0);
-            
-            // ★音量を 0.5 → 0.15 に下げました
             gain.gain.setValueAtTime(0.15, t0);
-            
             for(let i=0; i<30; i++) { 
                 let start = t0 + i * 0.2; 
-                // ★ここも 0.15 に変更
                 gain.gain.setValueAtTime(0.15, start); 
                 gain.gain.setValueAtTime(0, start + 0.1); 
             }
-            
             osc.connect(gain); gain.connect(ac.destination); osc.start(); currentOsc = osc;
             alarmTimeout = setTimeout(() => stopAlarmUser(), 5000);
         }
+
         function stopAlarmSound() { if(currentOsc) { try{currentOsc.stop();}catch(e){} currentOsc=null; } if(alarmTimeout){ clearTimeout(alarmTimeout); alarmTimeout=null; } }
-        function playTone(f, d) { initAudio(); const o=ac.createOscillator(); const g=ac.createGain(); o.frequency.value=f; g.gain.value=4.0; g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+d); o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+d); }
+        
+        function playTone(f, d) { 
+            initAudio(); 
+            // 鳴らす直前に強制再開
+            ac.resume().then(() => {
+                const o=ac.createOscillator(); const g=ac.createGain(); 
+                o.frequency.value=f; g.gain.value=0.2; 
+                g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+d); 
+                o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime+d); 
+            });
+        }
 
         // === アプリ起動 ===
         async function start() {
-            initAudio(); playTone(0, 0.1);
+            initAudio();
             document.getElementById('overlay').style.display = 'none';
-            let savedChime = localStorage.getItem('standby_chime'); if(savedChime === 'true') toggleChime();
+            
+            // チャイム設定の復元
+            let savedChime = localStorage.getItem('standby_chime'); 
+            if(savedChime === 'true') {
+                chimeOn = true;
+                const box = document.getElementById('chime-box');
+                box.classList.add('active');
+                document.getElementById('chime-icon').innerText = "🔔 ON";
+            }
+
             let m=localStorage.getItem('tm_m'), s=localStorage.getItem('tm_s');
             if(m) document.getElementById('t-min').value=m; if(s) document.getElementById('t-sec').value=s;
             try{if('wakeLock'in navigator)await navigator.wakeLock.request('screen');}catch(e){}
             
             fetchAllWeather();
-            setInterval(fetchAllWeather, 30 * 60 * 1000); // 30分おきにAPI更新
+            setInterval(fetchAllWeather, 30 * 60 * 1000); 
             renderCal();
         }
 
-        // === 時計 & 監視ループ (1秒ごと) ===
+        // === 時計 & 監視ループ ===
         setInterval(()=>{
             let d=new Date(); let h=d.getHours(), m=d.getMinutes(), s=d.getSeconds();
             document.getElementById('clock').innerHTML = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}<span style="font-size:0.5em">${String(s).padStart(2,'0')}</span>`;
             document.getElementById('date').innerText = `${d.getMonth()+1}/${d.getDate()} (${['日','月','火','水','木','金','土'][d.getDay()]})`;
 
             if(s === 0) {
-                checkAlarm(h, m); checkTodo(h, m);
-                if(chimeOn && m === 0) playTone(h===0?1046:880, h===0?0.5:0.8);
-                // 1分ごとに天気の「過ぎ去った時間」をチェックして再描画（APIは呼ばない）
+                checkAlarm(h, m); 
+                checkTodo(h, m);
+                
+                // 日付が変わった瞬間にカレンダーを再描画
+                if(h === 0 && m === 0) renderCal();
+
+                // 時報処理
+                if(chimeOn && m === 0) {
+                    // 0時は高い音、それ以外は通常の音
+                    playTone(h === 0 ? 1760 : 880, 0.8);
+                }
                 updateHourlyDisplay(); 
             }
         }, 1000);
 
-        // === 天気ロジック (過去削除 & 未来フロー) ===
-        let weatherCache = null; // データを保存しておく
-
+        // === 天気ロジック (藤沢市デフォルト) ===
+        let weatherCache = null;
         function getWeatherIcon(code) { if(code===0) return "☀️"; if(code<=3) return "🌤️"; if(code<=48) return "🌫️"; if(code<=67) return "☔"; if(code<=77) return "❄️"; if(code<=82) return "☔"; if(code<=99) return "⛈️"; return "☁️"; }
 
         function fetchAllWeather(){
-            navigator.geolocation.getCurrentPosition(async p=>{
-                try{
-                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
-                    const res = await fetch(url); 
-                    weatherCache = await res.json(); // データをキャッシュ
-                    
-                    // 現在の天気更新
-                    const cur = weatherCache.current_weather;
-                    document.getElementById('w-tmp').innerText = Math.round(cur.temperature) + "°";
-                    document.getElementById('w-icon').innerText = getWeatherIcon(cur.weathercode);
+            // 位置情報が取れない場合の予備として藤沢市の座標(35.33, 139.48)を使用
+            const defLat = 35.3391; const defLon = 139.4891;
+            
+            navigator.geolocation.getCurrentPosition(
+                async p => fetchApi(p.coords.latitude, p.coords.longitude),
+                async e => fetchApi(defLat, defLon)
+            );
+        }
 
-                    // リスト描画
-                    updateHourlyDisplay();
-                    updateWeeklyDisplay();
-
-                }catch(e){}
-            });
+        async function fetchApi(lat, lon) {
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
+                const res = await fetch(url); 
+                weatherCache = await res.json();
+                const cur = weatherCache.current_weather;
+                document.getElementById('w-tmp').innerText = Math.round(cur.temperature) + "°";
+                document.getElementById('w-icon').innerText = getWeatherIcon(cur.weathercode);
+                updateHourlyDisplay();
+                updateWeeklyDisplay();
+            } catch(e) { console.error("Weather fetch error"); }
         }
 
         function updateHourlyDisplay() {
             if(!weatherCache) return;
             const d = weatherCache;
-            const hTimes = d.hourly.time; 
-            const hTemps = d.hourly.temperature_2m; 
-            const hCodes = d.hourly.weathercode;
-            
-            // 重要: 「現在の時間」と一致する場所を探す（現地時間比較）
+            const hTimes = d.hourly.time; const hTemps = d.hourly.temperature_2m; const hCodes = d.hourly.weathercode;
             const now = new Date();
-            const currentHourStr = now.getHours(); // 0-23
-            const currentDateStr = now.toISOString().slice(0,10); // YYYY-MM-DD (UTCだが比較用)
-            
-            // APIの時間はISO文字列だが、timezone=autoなら現地時間の文字が入っている
-            // 例: "2026-01-24T14:00"
-            // 現在時刻（ローカル）以上の時間を抽出
-            
-            let hHtml = '';
-            let count = 0;
+            let hHtml = ''; let count = 0;
+            const compareTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).getTime();
             
             for(let i=0; i < hTimes.length; i++){
-                const tDate = new Date(hTimes[i]); // ブラウザがローカルとしてパースする
-                // 現在時刻(時)と比較。同じか未来なら表示
-                if (tDate >= new Date(now.setMinutes(0,0,0))) {
-                    if(count >= 24) break; // 24時間分まで
-
-                    const hourVal = tDate.getHours();
-                    const hourStr = hourVal + ":00";
+                const tDate = new Date(hTimes[i]);
+                if (tDate.getTime() >= compareTime) {
+                    if(count >= 24) break;
+                    const hourStr = tDate.getHours() + ":00";
                     const icon = getWeatherIcon(hCodes[i]);
                     const temp = Math.round(hTemps[i]);
-                    
-                    // 先頭（現在時刻）には特別なクラスをつける
                     const isCurrent = (count === 0);
                     const classStr = isCurrent ? "hour-item current-hour" : "hour-item";
-
                     hHtml += `<div class="${classStr}"><div style="font-size:0.8rem; opacity:0.7;">${hourStr}</div><div style="font-size:1.5rem; margin:5px 0;">${icon}</div><div style="font-weight:bold;">${temp}°</div></div>`;
                     count++;
                 }
@@ -362,14 +374,9 @@
         function updateWeeklyDisplay() {
             if(!weatherCache) return;
             const d = weatherCache;
-            const dayTimes = d.daily.time; 
-            const dayCodes = d.daily.weathercode; 
-            const maxs = d.daily.temperature_2m_max; 
-            const mins = d.daily.temperature_2m_min;
-            let wHtml = '';
-            // 今日以降を表示
-            const nowRaw = new Date(); nowRaw.setHours(0,0,0,0);
-
+            const dayTimes = d.daily.time; const dayCodes = d.daily.weathercode; 
+            const maxs = d.daily.temperature_2m_max; const mins = d.daily.temperature_2m_min;
+            let wHtml = ''; const nowRaw = new Date(); nowRaw.setHours(0,0,0,0);
             for(let i=0; i < dayTimes.length; i++){
                 const dt = new Date(dayTimes[i]);
                 if(dt >= nowRaw) {
@@ -385,10 +392,39 @@
         function stopAlarmUser() { stopAlarmSound(); document.getElementById('alarm-overlay').style.display = 'none'; }
         
         let chimeOn = false;
-        function toggleChime() { chimeOn = !chimeOn; localStorage.setItem('standby_chime', chimeOn); const box = document.getElementById('chime-box'); if(chimeOn) { box.classList.add('active'); document.getElementById('chime-icon').innerText = "🔔 ON"; playTone(880, 0.5); } else { box.classList.remove('active'); document.getElementById('chime-icon').innerText = "🔔 OFF"; } }
+        function toggleChime() { 
+            chimeOn = !chimeOn; 
+            localStorage.setItem('standby_chime', chimeOn); 
+            const box = document.getElementById('chime-box'); 
+            if(chimeOn) { 
+                box.classList.add('active'); 
+                document.getElementById('chime-icon').innerText = "🔔 ON"; 
+                playTone(880, 0.5); 
+            } else { 
+                box.classList.remove('active'); 
+                document.getElementById('chime-icon').innerText = "🔔 OFF"; 
+            } 
+        }
 
         function syncNav(side){ let c=document.getElementById(side+'-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth); for(let i=0; i<3; i++){ let d=document.getElementById(`dot-${side}-${i}`); if(d) d.classList.toggle('active', i===idx); } }
-        function renderCal(){ let n=new Date(), y=n.getFullYear(), m=n.getMonth(); try { let era = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {year:'numeric'}).format(n); document.getElementById('cal-era').innerText = era.match(/年/) ? era.split('年')[0]+'年' : y+"年"; } catch(e) { document.getElementById('cal-era').innerText = y+"年"; } document.getElementById('cal-ym').innerText = `${y}.${m+1}`; let html='', fd=new Date(y,m,1).getDay(), ld=new Date(y,m+1,0).getDate(); ['日','月','火','水','木','金','土'].forEach(d=>html+=`<div class="cal-cell cal-head">${d}</div>`); for(let i=0;i<fd;i++) html+='<div class="cal-cell"></div>'; for(let i=1;i<=ld;i++){ let cl='cal-cell'; if(i===n.getDate()) cl+=' today-cell'; html+=`<div class="${cl}">${i}</div>`; } document.getElementById('cal-grid').innerHTML=html; }
+        
+        function renderCal(){ 
+            let n=new Date(), y=n.getFullYear(), m=n.getMonth(); 
+            try { 
+                let era = new Intl.DateTimeFormat('ja-JP-u-ca-japanese', {year:'numeric'}).format(n); 
+                document.getElementById('cal-era').innerText = era.match(/年/) ? era.split('年')[0]+'年' : y+"年"; 
+            } catch(e) { document.getElementById('cal-era').innerText = y+"年"; } 
+            document.getElementById('cal-ym').innerText = `${y}.${m+1}`; 
+            let html='', fd=new Date(y,m,1).getDay(), ld=new Date(y,m+1,0).getDate(); 
+            ['日','月','火','水','木','金','土'].forEach(d=>html+=`<div class="cal-cell cal-head">${d}</div>`); 
+            for(let i=0;i<fd;i++) html+='<div class="cal-cell"></div>'; 
+            for(let i=1;i<=ld;i++){ 
+                let cl='cal-cell'; 
+                if(i===n.getDate()) cl+=' today-cell'; 
+                html+=`<div class="${cl}">${i}</div>`; 
+            } 
+            document.getElementById('cal-grid').innerHTML=html; 
+        }
 
         let alOn=false; function toggleAlarm(){ let v=document.getElementById('alarm-in').value; if(!v)return; alOn=!alOn; let b=document.getElementById('alarm-btn'), s=document.getElementById('alarm-stat'); b.innerText=alOn?"ON":"OFF"; b.classList.toggle('primary', alOn); s.innerText=alOn?v+" 待機中":"OFF"; }
         function checkAlarm(h,m){ let setVal = document.getElementById('alarm-in').value; let nowVal = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; if(alOn && setVal === nowVal){ triggerAlarmUI(); toggleAlarm(); }}
