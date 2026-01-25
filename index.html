@@ -243,9 +243,26 @@
     <script>
        // === オーディオエンジン ===
         let ac; let currentOsc = null; let alarmTimeout = null;
+        let keepAliveNode = null; // 無音ループ用
+
         function initAudio() { 
-            if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); 
+            if (!ac) {
+                ac = new (window.AudioContext || window.webkitAudioContext)();
+                startKeepAlive(); // 初期化時に無音再生を開始
+            }
             if (ac.state === 'suspended') ac.resume(); 
+        }
+
+        // iPhoneのオーディオ休止を防ぐための無音ループ
+        function startKeepAlive() {
+            if (keepAliveNode) return;
+            // 非常に短い無音のバッファを作成
+            const buffer = ac.createBuffer(1, 1, 44100);
+            keepAliveNode = ac.createBufferSource();
+            keepAliveNode.buffer = buffer;
+            keepAliveNode.loop = true;
+            keepAliveNode.connect(ac.destination);
+            keepAliveNode.start();
         }
 
         function playBeepLoop() {
@@ -266,7 +283,6 @@
         
         function playTone(f, d) { 
             initAudio(); 
-            // 鳴らす直前に強制再開
             ac.resume().then(() => {
                 const o=ac.createOscillator(); const g=ac.createGain(); 
                 o.frequency.value=f; g.gain.value=0.2; 
@@ -277,10 +293,9 @@
 
         // === アプリ起動 ===
         async function start() {
-            initAudio();
+            initAudio(); // ここで無音ループも開始される
             document.getElementById('overlay').style.display = 'none';
             
-            // チャイム設定の復元
             let savedChime = localStorage.getItem('standby_chime'); 
             if(savedChime === 'true') {
                 chimeOn = true;
@@ -307,15 +322,15 @@
             if(s === 0) {
                 checkAlarm(h, m); 
                 checkTodo(h, m);
-                
-                // 日付が変わった瞬間にカレンダーを再描画
                 if(h === 0 && m === 0) renderCal();
 
-                // 時報処理
                 if(chimeOn && m === 0) {
-                    // 0時は高い音、それ以外は通常の音
                     playTone(h === 0 ? 1760 : 880, 0.8);
                 }
+                
+                // 1分ごとにAudioContextの状態をチェックして、止まっていたら起こす
+                if (ac && ac.state === 'suspended') ac.resume();
+
                 updateHourlyDisplay(); 
             }
         }, 1000);
@@ -323,17 +338,13 @@
         // === 天気ロジック (藤沢市デフォルト) ===
         let weatherCache = null;
         function getWeatherIcon(code) { if(code===0) return "☀️"; if(code<=3) return "🌤️"; if(code<=48) return "🌫️"; if(code<=67) return "☔"; if(code<=77) return "❄️"; if(code<=82) return "☔"; if(code<=99) return "⛈️"; return "☁️"; }
-
         function fetchAllWeather(){
-            // 位置情報が取れない場合の予備として藤沢市の座標(35.33, 139.48)を使用
             const defLat = 35.3391; const defLon = 139.4891;
-            
             navigator.geolocation.getCurrentPosition(
                 async p => fetchApi(p.coords.latitude, p.coords.longitude),
                 async e => fetchApi(defLat, defLon)
             );
         }
-
         async function fetchApi(lat, lon) {
             try {
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`;
@@ -346,7 +357,6 @@
                 updateWeeklyDisplay();
             } catch(e) { console.error("Weather fetch error"); }
         }
-
         function updateHourlyDisplay() {
             if(!weatherCache) return;
             const d = weatherCache;
@@ -354,7 +364,6 @@
             const now = new Date();
             let hHtml = ''; let count = 0;
             const compareTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).getTime();
-            
             for(let i=0; i < hTimes.length; i++){
                 const tDate = new Date(hTimes[i]);
                 if (tDate.getTime() >= compareTime) {
@@ -370,7 +379,6 @@
             }
             document.getElementById('hourly-list').innerHTML = hHtml;
         }
-
         function updateWeeklyDisplay() {
             if(!weatherCache) return;
             const d = weatherCache;
@@ -390,24 +398,15 @@
         function toggleMode(){ document.body.classList.toggle('night-mode'); }
         function triggerAlarmUI() { document.getElementById('alarm-overlay').style.display = 'flex'; playBeepLoop(); }
         function stopAlarmUser() { stopAlarmSound(); document.getElementById('alarm-overlay').style.display = 'none'; }
-        
         let chimeOn = false;
         function toggleChime() { 
             chimeOn = !chimeOn; 
             localStorage.setItem('standby_chime', chimeOn); 
             const box = document.getElementById('chime-box'); 
-            if(chimeOn) { 
-                box.classList.add('active'); 
-                document.getElementById('chime-icon').innerText = "🔔 ON"; 
-                playTone(880, 0.5); 
-            } else { 
-                box.classList.remove('active'); 
-                document.getElementById('chime-icon').innerText = "🔔 OFF"; 
-            } 
+            if(chimeOn) { box.classList.add('active'); document.getElementById('chime-icon').innerText = "🔔 ON"; playTone(880, 0.5); } 
+            else { box.classList.remove('active'); document.getElementById('chime-icon').innerText = "🔔 OFF"; } 
         }
-
         function syncNav(side){ let c=document.getElementById(side+'-scroll'); let idx=Math.round(c.scrollLeft / c.clientWidth); for(let i=0; i<3; i++){ let d=document.getElementById(`dot-${side}-${i}`); if(d) d.classList.toggle('active', i===idx); } }
-        
         function renderCal(){ 
             let n=new Date(), y=n.getFullYear(), m=n.getMonth(); 
             try { 
@@ -419,13 +418,11 @@
             ['日','月','火','水','木','金','土'].forEach(d=>html+=`<div class="cal-cell cal-head">${d}</div>`); 
             for(let i=0;i<fd;i++) html+='<div class="cal-cell"></div>'; 
             for(let i=1;i<=ld;i++){ 
-                let cl='cal-cell'; 
-                if(i===n.getDate()) cl+=' today-cell'; 
+                let cl='cal-cell'; if(i===n.getDate()) cl+=' today-cell'; 
                 html+=`<div class="${cl}">${i}</div>`; 
             } 
             document.getElementById('cal-grid').innerHTML=html; 
         }
-
         let alOn=false; function toggleAlarm(){ let v=document.getElementById('alarm-in').value; if(!v)return; alOn=!alOn; let b=document.getElementById('alarm-btn'), s=document.getElementById('alarm-stat'); b.innerText=alOn?"ON":"OFF"; b.classList.toggle('primary', alOn); s.innerText=alOn?v+" 待機中":"OFF"; }
         function checkAlarm(h,m){ let setVal = document.getElementById('alarm-in').value; let nowVal = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; if(alOn && setVal === nowVal){ triggerAlarmUI(); toggleAlarm(); }}
         let tmInt, tmTot=0; function startTimer(){ let m=parseInt(document.getElementById('t-min').value)||0, s=parseInt(document.getElementById('t-sec').value)||0; if(m===0&&s===0)return; localStorage.setItem('tm_m',m); localStorage.setItem('tm_s',s); tmTot=m*60+s; document.getElementById('timer-set').style.display='none'; document.getElementById('timer-run').style.display='flex'; updTm(); tmInt=setInterval(()=>{ if(tmTot<=0){ resetTimer(); triggerAlarmUI(); } else{ tmTot--; updTm(); } },1000); }
